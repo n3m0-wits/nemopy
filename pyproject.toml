@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vec"
+version = "0.1.0"
+description = "A column-vector-first NumPy wrapper for linear algebra"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+scipy = ["scipy"]
+pandas = ["pandas"]
+dev = [
+    "pytest",
+    "sphinx",
+    "sphinx_rtd_theme",
+]
+
+[tool.setuptools.packages.find]
+include = ["vec*"]
