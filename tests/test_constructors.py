@@ -74,14 +74,14 @@ class TestColConstructor:
         u = _c[5]
         assert isinstance(u, ColVec)
         assert u.shape == (1, 1)
-        assert float(u) == 5.0
+        assert u.item() == 5.0
 
     def test_c_negative_element(self):
         """_c[-1] produces ColVec (1, 1) containing -1.0, not an indexing op."""
         u = _c[-1]
         assert isinstance(u, ColVec)
         assert u.shape == (1, 1)
-        assert float(u) == -1.0
+        assert u.item() == -1.0
 
     def test_c_nested_raises(self):
         """_c[[1, 2, 3]] raises ValueError for nested input."""
