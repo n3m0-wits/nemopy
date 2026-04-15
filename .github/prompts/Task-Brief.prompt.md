@@ -8,7 +8,7 @@ description: Used iteratively for each prompt.
 Before writing any code, you must read and internalise the following documents in order:
 
 1. **Agent Directive** — `.github/copilot-instructions.md`. This is your behavioural contract. Every rule is mandatory. Read it in full before proceeding.
-2. **Programme Design Document** — `DESIGN.md`. This is your sole technical specification. Do not deviate from it.
+2. **Programme Design Document** — `.github/DESIGN.md`. This is your sole technical specification. Do not deviate from it.
 
 If any instruction in this brief conflicts with the Agent Directive, the **Agent Directive wins** — unless this brief explicitly overrides a numbered section (e.g., "Override §10.3: ...").
 
