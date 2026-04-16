@@ -31,8 +31,8 @@ single entry, read its brief, and execute it in isolation.
 - Acceptance bullets are drawn from the verification criteria in
   `DESIGN.md` / `DESIGN_APPENDICES.md` / Appendix B. If a bullet seems to
   conflict with the spec, the spec wins (`CLAUDE.md` §1).
-- Do not add TODO/FIXME markers to source files while completing a task
-  (`CLAUDE.md` §8.3). This file is the only TODO tracker.
+- Do not document TODO items or speculative future behaviour in source files
+  while completing a task (`CLAUDE.md` §8.3). This file is the only TODO tracker.
 
 ## Dependency map
 
