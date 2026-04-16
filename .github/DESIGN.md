@@ -1045,7 +1045,7 @@ def __rmatmul__(self, other):
 
 **This heuristic does not fire for square arrays.** A square plain `ndarray` built row-first
 is indistinguishable at runtime from one built column-first. This is the one failure mode
-that requires authorial discipline (see Section 13.1 in `DESIGN_APPENDICES.md`).
+that requires authorial discipline (see Section 14.1 in `DESIGN_APPENDICES.md`).
 
 ### 7.6 Type Preservation Guarantee
 
