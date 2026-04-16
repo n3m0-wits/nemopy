@@ -255,8 +255,11 @@ All other tasks are independent.
 - Acceptance:
   - `as_mat([[1, 2], [3, 4]])` returns a `Mat` of shape `(2, 2)`, row-first
     convention.
-  - `as_mat` accepts a `pandas.DataFrame` and returns a `Mat` of matching
-    shape.
+  - `as_mat` accepts any 2D array-like input, including an existing `Mat` or
+    a 2D `numpy.ndarray`, and returns a `Mat` of matching shape.
+  - If `pandas` is available, `as_mat` accepts a `pandas.DataFrame` and
+    returns a `Mat` of matching shape; DataFrame handling is optional and must
+    not be required when `pandas` is not installed.
   - Non-2D input raises `ShapeError`.
   - `as_mat` is added to `__all__` in `nemopy/__init__.py`, following the
     existing comma style.
