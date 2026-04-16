@@ -128,8 +128,8 @@ All other tasks are independent.
 - Depends on: TASK-04 (shares scalar-detection / shape-inspection semantics)
 - Acceptance:
   - When a `_VecBase` subclass is used with `@` and the other operand is a
-    **plain** `np.ndarray` whose `shape[0] < shape[1]` (looks transposed),
-    a `ConventionWarning` is emitted.
+    **plain** 2D `np.ndarray` (`other.ndim == 2`) whose `shape[0] < shape[1]`
+    (looks transposed), a `ConventionWarning` is emitted.
   - No warning is emitted when both operands are `ColVec` / `Mat`.
   - The operation itself is **not** altered — NumPy's native matmul runs as
     usual.
