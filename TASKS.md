@@ -224,7 +224,8 @@ All other tasks are independent.
   - `to_numpy()` returns a plain `np.ndarray` of shape `(n, k)`.
   - `to_list()` returns a nested Python list (rows of floats).
   - `to_dataframe(columns=None, index=None)` returns a `pandas.DataFrame`,
-    accepting optional column and row labels.
+    accepting optional column and row labels, when pandas is installed;
+    otherwise it raises `ImportError`.
 - Branch convention: `feat/mat-outbound-conversions`
 
 ---
