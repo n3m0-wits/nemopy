@@ -239,7 +239,11 @@ All other tasks are independent.
 - Depends on: none
 - Acceptance:
   - `as_col([1, 2, 3])` returns a `ColVec` of shape `(3, 1)`.
-  - `as_col(pd.Series([4, 5]))` returns a `ColVec` of shape `(2, 1)`.
+  - `as_col(7)` returns a `ColVec` of shape `(1, 1)`.
+  - `as_col(np.array([1, 2, 3]))` returns a `ColVec` of shape `(3, 1)`.
+  - `as_col(np.ones((3, 1)))` returns a `ColVec` of shape `(3, 1)`.
+  - If pandas is importable, `as_col(pd.Series([4, 5]))` returns a `ColVec`
+    of shape `(2, 1)`.
   - `as_col(np.ones((3, 3)))` raises `ShapeError` (2D with more than one
     column is rejected).
   - `as_col` is added to `__all__` in `nemopy/__init__.py`, following the
