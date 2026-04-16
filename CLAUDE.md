@@ -11,7 +11,7 @@ This document is the governing contract for agent behaviour. Every rule is manda
 
 ## 1. SOURCE OF TRUTH
 
-The sole authoritative specification is `DESIGN.md`.
+The authoritative specification is split across two files: `DESIGN.md` (§§1–10) and `DESIGN_APPENDICES.md` (§§11–16 and Appendices A, B). Both files carry equal authority; the split exists purely so each file fits within a single LLM read pass. In the rules below, a reference to `DESIGN.md` denotes both files collectively unless otherwise stated.
 
 - **Behavioural contracts** (signatures, return types, error semantics, class hierarchies) defined in the code blocks of `DESIGN.md` are immutable. Do not alter, extend, rename, reorder, or reinterpret them.
 - If `DESIGN.md` is silent on an implementation detail, that detail is **unspecified**. Unspecified does not mean "use your judgement." See §5.3 (Ambiguity Protocol).
