@@ -209,7 +209,8 @@ All other tasks are independent.
   - `to_flat()` returns a plain `np.ndarray` of shape `(n,)`.
   - `to_list()` returns a flat Python list of floats.
   - `to_series(index=None, name=None)` returns a `pandas.Series` of length `n`,
-    accepting optional `index` and `name`.
+    accepting optional `index` and `name`; if pandas is not installed, it
+    raises `ImportError`.
 - Branch convention: `feat/colvec-outbound-conversions`
 
 ---
