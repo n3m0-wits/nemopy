@@ -265,7 +265,7 @@ There is no function call syntax, no parentheses — just bracket notation.
    Promoting to float avoids this entire class of bugs.
 2. Linear algebra routines (`np.linalg.solve`, `scipy.linalg.inv`, etc.) internally
    promote to float anyway. Starting with float avoids redundant copies.
-3. Complex vectors cannot be constructed via `_c[...]` — see Section 13.4.
+3. Complex vectors cannot be constructed via `_c[...]` — see Section 13.4 in `DESIGN_APPENDICES.md`.
 
 ### Edge cases
 
@@ -1045,7 +1045,7 @@ def __rmatmul__(self, other):
 
 **This heuristic does not fire for square arrays.** A square plain `ndarray` built row-first
 is indistinguishable at runtime from one built column-first. This is the one failure mode
-that requires authorial discipline (see Section 13.1).
+that requires authorial discipline (see Section 13.1 in `DESIGN_APPENDICES.md`).
 
 ### 7.6 Type Preservation Guarantee
 
