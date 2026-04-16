@@ -86,6 +86,21 @@
           to u.T modify u."
 - Expected: np.shares_memory(arr.T, arr) is True, and writing to arr.T propagates
             back to arr.
+
+## Test: test_h_real_inputs_match_transpose_elementwise_and_type
+- Goal: Verify that .H on a real _VecBase equals .T elementwise and that
+        the resulting type follows §4.4 persistence rules (shape (n,1) → ColVec;
+        any other 2D shape → Mat).
+- Source: DESIGN.md §5.7 — "Returns self.conj().T. For real arrays, this is
+          identical to .T" + §4.4 type-persistence table.
+- Expected: For ColVec(3,1) → Mat(1,3); ColVec(1,1) → ColVec(1,1);
+            Mat(3,2) → Mat(2,3); Mat(1,3) → ColVec(3,1). Values equal .T.
+
+## Test: test_h_complex_elements_are_conjugated
+- Goal: Verify that for complex input .H conjugates elements (the only
+        behavioural difference from .T).
+- Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
+- Expected: A.H values equal np.conj(A).T values elementwise.
 """
 
 import numpy as np
@@ -225,3 +240,33 @@ class TestTransposeTypePersistence:
         assert np.shares_memory(np.asarray(t), np.asarray(arr))
         t[0, 1] = 99.0
         assert arr[1, 0] == 99.0
+
+
+class TestConjugateTranspose:
+    @pytest.mark.parametrize(
+        "input_array, expected_type, expected_shape",
+        [
+            (np.array([[1.0], [2.0], [3.0]]), Mat, (1, 3)),
+            (np.array([[5.0]]), ColVec, (1, 1)),
+            (np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), Mat, (2, 3)),
+            (np.array([[1.0, 2.0, 3.0]]), ColVec, (3, 1)),
+        ],
+    )
+    def test_h_real_inputs_match_transpose_elementwise_and_type(
+        self, input_array, expected_type, expected_shape
+    ):
+        """For real inputs, .H equals .T and result type follows §4.4."""
+        source_type = ColVec if input_array.shape[1] == 1 else Mat
+        arr = source_type(input_array)
+        result = arr.H
+        assert isinstance(result, expected_type)
+        assert result.shape == expected_shape
+        assert np.array_equal(np.asarray(result), np.asarray(arr.T))
+
+    def test_h_complex_elements_are_conjugated(self):
+        """For complex input, .H conjugates elements (distinguishes from .T)."""
+        raw = np.array([[1 + 2j, 3 - 1j], [0 + 0j, 4 + 5j], [2 - 3j, -1 + 1j]])
+        arr = raw.view(Mat)
+        result = arr.H
+        expected = np.conj(raw).T
+        assert np.array_equal(np.asarray(result), expected)
