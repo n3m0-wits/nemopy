@@ -56,6 +56,26 @@
 - Source: DESIGN.md §4.4 — "For 0D or 1D results (reductions, scalar outputs),
           return plain ndarray".
 - Expected: np.sum(colvec) is a plain scalar (not _VecBase subclass).
+
+## Test: test_t_property_yields_correct_subtype
+- Goal: Verify that `.T` on a _VecBase subclass returns a view whose class
+        label follows the §4.4 shape → type rules (shape (n,1) → ColVec;
+        any other 2D shape → Mat).
+- Source: DESIGN.md §5.6 table — "u.T on ColVec (n,1), n>1 → Mat (1,n);
+          u.T on ColVec (1,1) → ColVec (1,1); A.T on Mat (n,k) → Mat (k,n);
+          A.T on Mat (n,1) → Mat (1,n) [but §4.4 routes (1,n) to Mat, (n,1)
+          to ColVec]".
+- Expected: ColVec(3,1).T → Mat(1,3); ColVec(1,1).T → ColVec(1,1);
+            Mat(3,2).T → Mat(2,3); Mat(1,3).T → ColVec(3,1). Values equal
+            np.asarray(x).T elementwise.
+
+## Test: test_transpose_method_consistent_with_t_attribute
+- Goal: Verify that `.transpose()` (and by extension np.transpose(x)) returns
+        the same type and shape as `.T` for every _VecBase subclass instance.
+- Source: DESIGN.md §5.6 — `.T` and `.transpose()` are semantically equivalent
+          operations; both must honour §4.4.
+- Expected: for each of the four shape cases, type(arr.transpose()) and
+            type(np.transpose(arr)) equal type(arr.T); shapes match.
 """
 
 import numpy as np
@@ -142,3 +162,46 @@ class TestUfuncPersistence:
         s = np.sum(u)
         assert not isinstance(s, ColVec)
         assert not isinstance(s, Mat)
+
+
+class TestTransposeTypePersistence:
+    @pytest.mark.parametrize(
+        "input_array, expected_type, expected_shape",
+        [
+            (np.array([[1.0], [2.0], [3.0]]), Mat, (1, 3)),
+            (np.array([[5.0]]), ColVec, (1, 1)),
+            (np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), Mat, (2, 3)),
+            (np.array([[1.0, 2.0, 3.0]]), ColVec, (3, 1)),
+        ],
+    )
+    def test_t_property_yields_correct_subtype(
+        self, input_array, expected_type, expected_shape
+    ):
+        """`.T` relabels the view per §4.4 shape → type rules."""
+        source_type = ColVec if input_array.shape[1] == 1 else Mat
+        arr = source_type(input_array)
+        result = arr.T
+        assert isinstance(result, expected_type)
+        assert result.shape == expected_shape
+        assert np.array_equal(np.asarray(result), np.asarray(arr).T)
+
+    @pytest.mark.parametrize(
+        "input_array",
+        [
+            np.array([[1.0], [2.0], [3.0]]),
+            np.array([[5.0]]),
+            np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
+            np.array([[1.0, 2.0, 3.0]]),
+        ],
+    )
+    def test_transpose_method_consistent_with_t_attribute(self, input_array):
+        """`.transpose()` and `np.transpose(x)` match `.T` in type and shape."""
+        source_type = ColVec if input_array.shape[1] == 1 else Mat
+        arr = source_type(input_array)
+        via_attr = arr.T
+        via_method = arr.transpose()
+        via_module = np.transpose(arr)
+        assert type(via_method) is type(via_attr)
+        assert via_method.shape == via_attr.shape
+        assert type(via_module) is type(via_attr)
+        assert via_module.shape == via_attr.shape
