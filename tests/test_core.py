@@ -269,4 +269,6 @@ class TestConjugateTranspose:
         arr = raw.view(Mat)
         result = arr.H
         expected = np.conj(raw).T
+        assert isinstance(result, Mat)
+        assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
