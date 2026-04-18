@@ -160,6 +160,24 @@
         are `ColVec`/`Mat` subclasses.
 - Source: DESIGN.md §7.5 — warning applies only to plain ndarray operands.
 - Expected: no warnings for `ColVec @ Mat` and `Mat @ ColVec`.
+
+## Test: test_inplace_arithmetic_mismatched_shapes_raise_shape_error
+- Goal: Verify that `+=`, `-=`, `*=`, `/=` raise `ShapeError` when LHS and RHS
+        have different array shapes.
+- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes`.
+- Expected: `ShapeError` is raised for a (3,1) LHS op= (2,1) RHS across all
+            four operators.
+
+## Test: test_inplace_mutates_in_place_and_preserves_label
+- Goal: Verify that `u += v` (and `-=`, `*=`, `/=`) mutate the existing array
+        view (`id` unchanged), preserve the subclass label, and produce the
+        hand-computed result — the three guarantees §7.7 adds beyond NumPy's
+        default augmented-assignment behaviour, which rebinds via
+        `__array_ufunc__` and thus changes the object identity.
+- Source: DESIGN.md §7.7 — "data is modified in-place on the existing array
+          view" and "the subclass label of the left-hand operand is preserved".
+- Expected: for each of the 4 operators, `id(u)` is unchanged, `type(u)` is
+            unchanged, and values equal the hand-computed reference.
 """
 
 import numpy as np
@@ -438,3 +456,41 @@ class TestMatmulConventionWarnings:
             _ = left_mat @ right_vec
 
         assert len(caught) == 0
+
+
+class TestInplaceOperators:
+    @pytest.mark.parametrize(
+        "op",
+        [
+            lambda a, b: a.__iadd__(b),
+            lambda a, b: a.__isub__(b),
+            lambda a, b: a.__imul__(b),
+            lambda a, b: a.__itruediv__(b),
+        ],
+    )
+    def test_inplace_arithmetic_mismatched_shapes_raise_shape_error(self, op):
+        """All four in-place operators raise ShapeError on mismatched array shapes."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5]
+        with pytest.raises(ShapeError):
+            op(u, v)
+
+    @pytest.mark.parametrize(
+        "augmented, expected",
+        [
+            (lambda u, v: u.__iadd__(v), np.array([[5.0], [7.0], [9.0]])),
+            (lambda u, v: u.__isub__(v), np.array([[-3.0], [-3.0], [-3.0]])),
+            (lambda u, v: u.__imul__(v), np.array([[4.0], [10.0], [18.0]])),
+            (lambda u, v: u.__itruediv__(v), np.array([[0.25], [0.4], [0.5]])),
+        ],
+    )
+    def test_inplace_mutates_in_place_and_preserves_label(self, augmented, expected):
+        """`+=`, `-=`, `*=`, `/=` mutate the existing view (id unchanged), keep the ColVec label, and produce the hand-computed result."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5, 6]
+        before = id(u)
+        result = augmented(u, v)
+        assert id(result) == before
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), expected)
