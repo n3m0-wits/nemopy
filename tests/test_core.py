@@ -101,7 +101,6 @@
         behavioural difference from .T).
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
-
 ## Test: test_is_scalar_accepts_specified_scalar_types
 - Goal: Verify `_is_scalar` returns True for all scalar categories required
         by the spec.
@@ -144,10 +143,28 @@
 - Source: DESIGN.md §7.1/§7.3 — scalar operations are always permitted.
 - Expected: `u * 2`, `2 * u`, `u + 2`, `2 + u`, `u - 2`, `2 - u`, `u / 2`,
             `2 / u` do not raise and preserve shape.
+## Test: test_matmul_warns_for_plain_transposed_like_right_ndarray
+- Goal: Verify `_VecBase @ ndarray` emits `ConventionWarning` when the plain
+        right operand is 2D with `shape[0] < shape[1]`.
+- Source: DESIGN.md §7.5 — warning heuristic for plain ndarray right operand.
+- Expected: warning emitted once; `@` result equals NumPy matmul output.
+
+## Test: test_rmatmul_warns_for_plain_transposed_like_left_ndarray
+- Goal: Verify `ndarray @ _VecBase` emits `ConventionWarning` when the plain
+        left operand is 2D with `shape[0] < shape[1]`.
+- Source: DESIGN.md §7.5 — warning heuristic for plain ndarray left operand.
+- Expected: warning emitted once; `@` result equals NumPy matmul output.
+
+## Test: test_matmul_no_warning_when_both_operands_are_nemopy_types
+- Goal: Verify no `ConventionWarning` is emitted when both operands in `@`
+        are `ColVec`/`Mat` subclasses.
+- Source: DESIGN.md §7.5 — warning applies only to plain ndarray operands.
+- Expected: no warnings for `ColVec @ Mat` and `Mat @ ColVec`.
 """
 
 import numpy as np
 import pytest
+import warnings
 
 from nemopy import ColVec, Mat, ShapeError, ConventionWarning
 from nemopy._constructors import _c
@@ -317,8 +334,6 @@ class TestConjugateTranspose:
         assert isinstance(result, Mat)
         assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
-
-
 class TestShapeGuardHelpers:
     @pytest.mark.parametrize(
         "value",
@@ -391,3 +406,35 @@ class TestShapeGuardedOperators:
         u = _c[1, 2, 4]
         result = op(u)
         assert result.shape == (3, 1)
+class TestMatmulConventionWarnings:
+    def test_matmul_warns_for_plain_transposed_like_right_ndarray(self):
+        """_VecBase @ plain 2D ndarray warns when right operand looks transposed."""
+        left = _c[1, 2]
+        right = np.array([[3.0, 4.0, 5.0]])
+        with pytest.warns(ConventionWarning):
+            result = left @ right
+        expected = np.asarray(left) @ right
+        assert np.array_equal(np.asarray(result), expected)
+
+    def test_rmatmul_warns_for_plain_transposed_like_left_ndarray(self):
+        """plain 2D ndarray @ _VecBase warns when left operand looks transposed."""
+        left = np.array([[1.0, 2.0]])
+        right = _c[3, 4]
+        with pytest.warns(ConventionWarning):
+            result = left @ right
+        expected = left @ np.asarray(right)
+        assert np.array_equal(np.asarray(result), expected)
+
+    def test_matmul_no_warning_when_both_operands_are_nemopy_types(self):
+        """No warning when both @ operands are ColVec/Mat."""
+        left_vec = _c[1]
+        right_mat = Mat(np.array([[3.0]]))
+        left_mat = Mat(np.array([[1.0], [2.0]]))
+        right_vec = _c[3]
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _ = left_vec @ right_mat
+            _ = left_mat @ right_vec
+
+        assert len(caught) == 0

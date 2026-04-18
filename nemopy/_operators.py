@@ -1,8 +1,10 @@
 """Operator override logic (mixed into _VecBase)."""
 
+import warnings
+
 import numpy as np
 
-from nemopy._core import ShapeError, _VecBase
+from nemopy._core import ConventionWarning, ShapeError, _VecBase
 
 
 def _is_scalar(x):
@@ -67,6 +69,32 @@ def __rtruediv__(self, other):
     return super(_VecBase, self).__rtruediv__(other)
 
 
+def __matmul__(self, other):
+    if isinstance(other, np.ndarray) and not isinstance(other, _VecBase):
+        if other.ndim == 2 and other.shape[0] < other.shape[1]:
+            warnings.warn(
+                f"Right operand of @ is a plain ndarray with shape {other.shape} — "
+                f"more columns than rows. If this came from np.array([[...]]), "
+                f"it may be row-first and transposed relative to nemopy convention. "
+                f"Wrap with Mat(...) to suppress this warning.",
+                ConventionWarning,
+                stacklevel=2,
+            )
+    return super(_VecBase, self).__matmul__(other)
+
+
+def __rmatmul__(self, other):
+    if isinstance(other, np.ndarray) and not isinstance(other, _VecBase):
+        if other.ndim == 2 and other.shape[0] < other.shape[1]:
+            warnings.warn(
+                f"Left operand of @ is a plain ndarray with shape {other.shape} — "
+                f"more columns than rows. If this came from np.array([[...]]), "
+                f"it may be row-first and transposed relative to nemopy convention. "
+                f"Wrap with Mat(...) to suppress this warning.",
+                ConventionWarning,
+                stacklevel=2,
+            )
+    return super(_VecBase, self).__rmatmul__(other)
 _VecBase.__mul__ = __mul__
 _VecBase.__rmul__ = __rmul__
 _VecBase.__add__ = __add__
@@ -75,3 +103,5 @@ _VecBase.__sub__ = __sub__
 _VecBase.__rsub__ = __rsub__
 _VecBase.__truediv__ = __truediv__
 _VecBase.__rtruediv__ = __rtruediv__
+_VecBase.__matmul__ = __matmul__
+_VecBase.__rmatmul__ = __rmatmul__
