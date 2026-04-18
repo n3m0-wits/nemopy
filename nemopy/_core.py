@@ -109,6 +109,19 @@ class _VecBase(np.ndarray):
         """
         return _apply_type_rules(np.asarray(self).transpose(*axes))
 
+    @property
+    def H(self):
+        """Conjugate transpose (Hermitian adjoint).
+
+        Returns self.conj().T. For real arrays, this is identical to .T.
+
+        Returns
+        -------
+        ColVec or Mat
+            Type determined by output shape (same rules as .T).
+        """
+        return self.conj().T
+
 
 class ColVec(_VecBase):
     """Column vector: shape (n, 1), dtype float64.
