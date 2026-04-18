@@ -169,3 +169,13 @@ class Mat(_VecBase):
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def is_singular(self):
+        """Check whether the matrix is singular (non-invertible)."""
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Singularity is defined only for square matrices. "
+                f"This matrix has shape {self.shape}."
+            )
+        return int(np.linalg.matrix_rank(self)) < self.shape[0]
