@@ -101,6 +101,37 @@
         behavioural difference from .T).
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
+
+## Test: test_int_index_returns_scalar_float
+- Goal: Verify that integer indexing on a ColVec returns a Python float equal
+        to the extracted element.
+- Source: DESIGN.md §6.1 table row 1 — "u[0] → np.float64, scalar 10.0";
+          §6.1 narrative — "u[0] returns a scalar, not a (1, 1) ColVec".
+- Expected: u[0] is a float (via isinstance) and equals 10.0.
+
+## Test: test_tuple_index_returns_scalar_float
+- Goal: Verify that explicit 2D indexing (u[i, 0]) on a ColVec returns a
+        Python float equal to the extracted element.
+- Source: DESIGN.md §6.1 table row 2 — "u[0, 0] → np.float64, scalar 10.0".
+- Expected: u[0, 0] is a float and equals 10.0.
+
+## Test: test_slice_returns_colvec
+- Goal: Verify that slicing a ColVec preserves column structure, returning a
+        ColVec of shape (k, 1) with the expected values.
+- Source: DESIGN.md §6.1 table row 3 — "u[1:4] → ColVec, shape (3, 1)".
+- Expected: u[1:4] is a ColVec of shape (3, 1) with values [20, 30, 40].
+
+## Test: test_fancy_index_returns_colvec
+- Goal: Verify that fancy indexing (list of ints) on a ColVec preserves column
+        structure, returning a ColVec.
+- Source: DESIGN.md §6.1 table row 4 — "u[[0, 2, 4]] → ColVec, shape (3, 1)".
+- Expected: u[[0, 2, 4]] is a ColVec of shape (3, 1) with values [10, 30, 50].
+
+## Test: test_boolean_mask_returns_colvec
+- Goal: Verify that boolean-mask indexing on a ColVec preserves column
+        structure, returning a ColVec.
+- Source: DESIGN.md §6.1 table row 5 — "u[u > 25] → ColVec, shape (3, 1)".
+- Expected: u[u > 25] is a ColVec of shape (3, 1) with values [30, 40, 50].
 """
 
 import numpy as np
@@ -272,3 +303,47 @@ class TestConjugateTranspose:
         assert isinstance(result, Mat)
         assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
+
+
+class TestColVecGetitem:
+    @staticmethod
+    def _u():
+        return ColVec(np.array([[10.0], [20.0], [30.0], [40.0], [50.0]]))
+
+    def test_int_index_returns_scalar_float(self):
+        """u[0] returns a Python float equal to the first element."""
+        u = self._u()
+        result = u[0]
+        assert type(result) is float
+        assert result == 10.0
+
+    def test_tuple_index_returns_scalar_float(self):
+        """u[0, 0] returns a Python float equal to the first element."""
+        u = self._u()
+        result = u[0, 0]
+        assert type(result) is float
+        assert result == 10.0
+
+    def test_slice_returns_colvec(self):
+        """u[1:4] returns a ColVec of shape (3, 1) with the sliced values."""
+        u = self._u()
+        result = u[1:4]
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), np.array([[20.0], [30.0], [40.0]]))
+
+    def test_fancy_index_returns_colvec(self):
+        """u[[0, 2, 4]] returns a ColVec of shape (3, 1) with the selected values."""
+        u = self._u()
+        result = u[[0, 2, 4]]
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), np.array([[10.0], [30.0], [50.0]]))
+
+    def test_boolean_mask_returns_colvec(self):
+        """u[u > 25] returns a ColVec of shape (3, 1) with the matching values."""
+        u = self._u()
+        result = u[u > 25]
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), np.array([[30.0], [40.0], [50.0]]))
