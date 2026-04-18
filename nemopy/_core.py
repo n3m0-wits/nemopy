@@ -78,6 +78,37 @@ class _VecBase(np.ndarray):
 
             return _apply_type_rules(results)
 
+    @property
+    def T(self):
+        """Transpose, with subclass label dispatched by output shape.
+
+        Returns a view of the underlying data with axes reversed. The
+        class label follows §4.4 shape → type rules: shape (n, 1) →
+        ColVec; any other 2D shape → Mat. Shadows np.ndarray.T because
+        NumPy sets the view's shape after __array_finalize__ returns,
+        so the inherited .T would otherwise keep the source subclass.
+
+        Returns
+        -------
+        ColVec or Mat
+            Type determined by output shape per §4.4.
+        """
+        return _apply_type_rules(np.asarray(self).transpose())
+
+    def transpose(self, *axes):
+        """Transpose, with subclass label dispatched by output shape.
+
+        Semantic twin of `.T` covering the method spelling (and, by
+        extension, `np.transpose(x)`). The returned class label follows
+        §4.4 shape → type rules.
+
+        Returns
+        -------
+        ColVec or Mat
+            Type determined by output shape per §4.4.
+        """
+        return _apply_type_rules(np.asarray(self).transpose(*axes))
+
 
 class ColVec(_VecBase):
     """Column vector: shape (n, 1), dtype float64.

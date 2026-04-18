@@ -615,18 +615,33 @@ $$
 This is a pure index swap. No conjugation is involved, even for complex entries.
 For the conjugate transpose, see Section 5.7.
 
-**Implementation.** `.T` is inherited from `np.ndarray` — it is the standard NumPy
-transpose attribute (a view, not a copy). No override is needed. The `__array_wrap__`
-logic (Section 4.4) determines the output type based on the resulting shape.
+**Implementation.** `.T` is a property on `_VecBase` that returns a transposed
+view with the subclass label dispatched by Section 4.4's shape → type rules. An
+explicit override is required because NumPy's native `.T` preserves the source
+subclass label rather than relabeling by shape. The method spelling
+`.transpose()` (and, by extension, `np.transpose(x)`) is overridden on
+`_VecBase` for the same reason, so all three spellings agree.
+
+```python
+# On _VecBase:
+@property
+def T(self):
+    return _apply_type_rules(np.asarray(self).transpose())
+
+def transpose(self, *axes):
+    return _apply_type_rules(np.asarray(self).transpose(*axes))
+```
 
 **Behavioural contract:**
 
 | Expression | Input type | Input shape | Output type | Output shape | Rationale |
 |---|---|---|---|---|---|
-| `u.T` | `ColVec` | $(n, 1)$, $n > 1$ | `Mat` | $(1, n)$ | A $(1 \times n)$ matrix is a row matrix, not a column vector |
-| `u.T` | `ColVec` | $(1, 1)$ | `ColVec` | $(1, 1)$ | A $(1 \times 1)$ matrix has one column → `ColVec` by Section 4.4 rules |
-| `A.T` | `Mat` | $(n, k)$, $k > 1$ | `Mat` | $(k, n)$ | Transpose of a matrix is a matrix |
-| `A.T` | `Mat` | $(n, 1)$ | `Mat` | $(1, n)$ | Single-column `Mat` transposed → row matrix |
+| `u.T` | `ColVec` | $(n, 1)$, $n > 1$ | `Mat` | $(1, n)$ | Output has $>1$ column → `Mat` by Section 4.4 |
+| `u.T` | `ColVec` | $(1, 1)$ | `ColVec` | $(1, 1)$ | Output is $(n, 1)$ → `ColVec` by Section 4.4 |
+| `A.T` | `Mat` | $(n, k)$, $n > 1, k > 1$ | `Mat` | $(k, n)$ | Output has $>1$ column → `Mat` by Section 4.4 |
+| `A.T` | `Mat` | $(n, 1)$, $n > 1$ | `Mat` | $(1, n)$ | Output has $>1$ column → `Mat` by Section 4.4 |
+| `A.T` | `Mat` | $(1, k)$, $k > 1$ | `ColVec` | $(k, 1)$ | Output is $(n, 1)$ → `ColVec` by Section 4.4 |
+| `A.T` | `Mat` | $(1, 1)$ | `ColVec` | $(1, 1)$ | Output is $(n, 1)$ → `ColVec` by Section 4.4 |
 
 **Key points:**
 - `.T` is always a **view** (no data copy). Modifications to `u.T` modify `u`.
