@@ -169,3 +169,46 @@ class Mat(_VecBase):
 
     def __str__(self):
         return self.__repr__()
+
+    def to_numpy(self):
+        """Return a plain ndarray of shape (n, k). Strips subclass label.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n, k)``, dtype ``float64``.
+        """
+        return np.array(self)
+
+    def to_list(self):
+        """Return a nested list (list of rows, each a list of floats).
+
+        Returns
+        -------
+        list of list of float
+            Outer list has ``n`` elements, each inner list has ``k`` elements.
+        """
+        return self.tolist()
+
+    def to_dataframe(self, columns=None, index=None):
+        """Return a pandas DataFrame.
+
+        Parameters
+        ----------
+        columns : list of str, optional
+            Column labels. Defaults to integer range.
+        index : array-like, optional
+            Row index labels.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        Raises
+        ------
+        ImportError
+            If pandas is not installed.
+        """
+        import pandas as pd
+
+        return pd.DataFrame(np.asarray(self), columns=columns, index=index)
