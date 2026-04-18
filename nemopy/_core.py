@@ -169,3 +169,24 @@ class Mat(_VecBase):
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def det(self):
+        """Determinant of the matrix.
+
+        Returns
+        -------
+        float
+            The determinant as a Python float.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square.
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Determinant is defined only for square matrices. "
+                f"This matrix has shape {self.shape}."
+            )
+        return float(np.linalg.det(self))
