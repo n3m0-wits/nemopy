@@ -427,10 +427,10 @@ class TestMatmulConventionWarnings:
 
     def test_matmul_no_warning_when_both_operands_are_nemopy_types(self):
         """No warning when both @ operands are ColVec/Mat."""
-        left_vec = _c[1, 2]
-        right_mat = Mat(np.array([[3.0, 4.0, 5.0]]))
-        left_mat = Mat(np.array([[1.0, 2.0]]))
-        right_vec = _c[3, 4]
+        left_vec = _c[1]
+        right_mat = Mat(np.array([[3.0]]))
+        left_mat = Mat(np.array([[1.0], [2.0]]))
+        right_vec = _c[3]
 
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
