@@ -165,7 +165,7 @@ class Mat(_VecBase):
         result = super().__getitem__(key)
 
         if not isinstance(result, np.ndarray) or result.ndim == 0:
-            return float(result) if isinstance(result, np.generic) else result
+            return float(result)
 
         if result.ndim == 1:
             if isinstance(key, tuple) and len(key) == 2:
@@ -174,6 +174,7 @@ class Mat(_VecBase):
                     return ColVec(result.reshape(-1, 1))
                 if isinstance(row_key, (int, np.integer)):
                     return Mat(result.reshape(1, -1))
+            # For ambiguous 1D indexing, preserve column-first convention.
             return ColVec(result.reshape(-1, 1))
 
         if result.ndim == 2 and result.shape[1] == 1:

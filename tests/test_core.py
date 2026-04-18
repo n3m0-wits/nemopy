@@ -216,8 +216,8 @@ class TestMatGetItem:
         """A[:, j] can be used directly in @ expressions."""
         A = Mat(np.array([[1, 2], [3, 4], [5, 6]], dtype=float))
         v = ColVec(np.array([[7], [8], [9]], dtype=float))
-        a1 = A[:, 0]
-        result = a1 @ (a1.T @ v)
+        first_col = A[:, 0]
+        result = first_col @ (first_col.T @ v)
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
 
