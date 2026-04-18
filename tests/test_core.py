@@ -72,10 +72,20 @@
 ## Test: test_transpose_method_consistent_with_t_attribute
 - Goal: Verify that `.transpose()` (and by extension np.transpose(x)) returns
         the same type and shape as `.T` for every _VecBase subclass instance.
-- Source: DESIGN.md §5.6 — `.T` and `.transpose()` are semantically equivalent
-          operations; both must honour §4.4.
-- Expected: for each of the four shape cases, type(arr.transpose()) and
+- Source: DESIGN.md §5.6 defines the `.T` result shapes/types, and §4.4
+          defines the 2D shape → subtype routing; `.transpose()` and
+          np.transpose(x) are checked here for consistency with the inherited
+          NumPy transpose API.
+- Expected: for each parametrised case, type(arr.transpose()) and
             type(np.transpose(arr)) equal type(arr.T); shapes match.
+
+## Test: test_t_is_a_view
+- Goal: Verify that `.T` returns a view, not a copy — mutating the transpose
+        mutates the source and vice versa.
+- Source: DESIGN.md §5.6 — "`.T` is always a view (no data copy). Modifications
+          to u.T modify u."
+- Expected: np.shares_memory(arr.T, arr) is True, and writing to arr.T propagates
+            back to arr.
 """
 
 import numpy as np
@@ -166,19 +176,19 @@ class TestUfuncPersistence:
 
 class TestTransposeTypePersistence:
     @pytest.mark.parametrize(
-        "input_array, expected_type, expected_shape",
+        "source_type, input_array, expected_type, expected_shape",
         [
-            (np.array([[1.0], [2.0], [3.0]]), Mat, (1, 3)),
-            (np.array([[5.0]]), ColVec, (1, 1)),
-            (np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), Mat, (2, 3)),
-            (np.array([[1.0, 2.0, 3.0]]), ColVec, (3, 1)),
+            (ColVec, np.array([[1.0], [2.0], [3.0]]), Mat, (1, 3)),
+            (ColVec, np.array([[5.0]]), ColVec, (1, 1)),
+            (Mat, np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]), Mat, (2, 3)),
+            (Mat, np.array([[1.0, 2.0, 3.0]]), ColVec, (3, 1)),
+            (Mat, np.array([[1.0], [2.0], [3.0]]), Mat, (1, 3)),
         ],
     )
     def test_t_property_yields_correct_subtype(
-        self, input_array, expected_type, expected_shape
+        self, source_type, input_array, expected_type, expected_shape
     ):
         """`.T` relabels the view per §4.4 shape → type rules."""
-        source_type = ColVec if input_array.shape[1] == 1 else Mat
         arr = source_type(input_array)
         result = arr.T
         assert isinstance(result, expected_type)
@@ -186,17 +196,19 @@ class TestTransposeTypePersistence:
         assert np.array_equal(np.asarray(result), np.asarray(arr).T)
 
     @pytest.mark.parametrize(
-        "input_array",
+        "source_type, input_array",
         [
-            np.array([[1.0], [2.0], [3.0]]),
-            np.array([[5.0]]),
-            np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]),
-            np.array([[1.0, 2.0, 3.0]]),
+            (ColVec, np.array([[1.0], [2.0], [3.0]])),
+            (ColVec, np.array([[5.0]])),
+            (Mat, np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])),
+            (Mat, np.array([[1.0, 2.0, 3.0]])),
+            (Mat, np.array([[1.0], [2.0], [3.0]])),
         ],
     )
-    def test_transpose_method_consistent_with_t_attribute(self, input_array):
+    def test_transpose_method_consistent_with_t_attribute(
+        self, source_type, input_array
+    ):
         """`.transpose()` and `np.transpose(x)` match `.T` in type and shape."""
-        source_type = ColVec if input_array.shape[1] == 1 else Mat
         arr = source_type(input_array)
         via_attr = arr.T
         via_method = arr.transpose()
@@ -205,3 +217,11 @@ class TestTransposeTypePersistence:
         assert via_method.shape == via_attr.shape
         assert type(via_module) is type(via_attr)
         assert via_module.shape == via_attr.shape
+
+    def test_t_is_a_view(self):
+        """`.T` shares memory with the source; mutations propagate both ways."""
+        arr = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        t = arr.T
+        assert np.shares_memory(np.asarray(t), np.asarray(arr))
+        t[0, 1] = 99.0
+        assert arr[1, 0] == 99.0

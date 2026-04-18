@@ -104,7 +104,7 @@ class _VecBase(np.ndarray):
 
         Returns
         -------
-        ColVec or Mat or np.ndarray
+        ColVec or Mat
             Type determined by output shape per §4.4.
         """
         return _apply_type_rules(np.asarray(self).transpose(*axes))
