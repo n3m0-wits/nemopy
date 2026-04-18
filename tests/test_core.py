@@ -44,6 +44,24 @@
 - Source: DESIGN.md §4.3 — Mat.__repr__ specification.
 - Expected: repr contains "Mat(2x3):" and row entries.
 
+## Test: test_mat_inv_identity_returns_mat_identity
+- Goal: Verify that `.inv` on an invertible square Mat returns a Mat equal to
+        the mathematical inverse (identity remains identity).
+- Source: DESIGN.md §9.1 — `.inv` returns `Mat(np.linalg.inv(self))` for square,
+          non-singular matrices.
+- Expected: `Mat(np.eye(3)).inv` is Mat with shape (3,3) and identity values.
+
+## Test: test_mat_inv_rejects_non_square
+- Goal: Verify that `.inv` rejects non-square matrices with ShapeError.
+- Source: DESIGN.md §9.1 — raises ShapeError when `self.shape[0] != self.shape[1]`.
+- Expected: accessing `.inv` on shape (2,3) raises ShapeError.
+
+## Test: test_mat_inv_singular_raises_linalg_error
+- Goal: Verify that `.inv` propagates NumPy's singular-matrix failure.
+- Source: DESIGN.md §9.1 — `.inv` calls `np.linalg.inv` and propagates
+          `numpy.linalg.LinAlgError` for singular matrices.
+- Expected: accessing `.inv` on a singular square matrix raises LinAlgError.
+
 ## Test: test_ufunc_preserves_types
 - Goal: Verify that element-wise ufuncs (np.exp) preserve ColVec and Mat types
         based on output shape.
@@ -166,6 +184,26 @@ class TestMat:
         assert r.startswith("Mat(2x3):")
         assert "[1, 2, 3]" in r
         assert "[4, 5, 6]" in r
+
+    def test_mat_inv_identity_returns_mat_identity(self):
+        """`.inv` returns Mat identity for identity input."""
+        A = Mat(np.eye(3))
+        A_inv = A.inv
+        assert isinstance(A_inv, Mat)
+        assert A_inv.shape == (3, 3)
+        assert np.array_equal(np.asarray(A_inv), np.eye(3))
+
+    def test_mat_inv_rejects_non_square(self):
+        """`.inv` raises ShapeError for non-square matrices."""
+        A = Mat(np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+        with pytest.raises(ShapeError):
+            _ = A.inv
+
+    def test_mat_inv_singular_raises_linalg_error(self):
+        """`.inv` propagates np.linalg.LinAlgError for singular matrices."""
+        A = Mat(np.array([[1.0, 2.0], [2.0, 4.0]]))
+        with pytest.raises(np.linalg.LinAlgError):
+            _ = A.inv
 
 
 class TestUfuncPersistence:
