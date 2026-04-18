@@ -4,7 +4,7 @@ import warnings
 
 import numpy as np
 
-from nemopy._core import ColVec, ConventionWarning, Mat
+from nemopy._core import ColVec, ConventionWarning, Mat, ShapeError
 
 
 class _ColConstructor:
@@ -118,3 +118,41 @@ def eye(n):
         Shape ``(n, n)`` identity matrix with dtype ``float64``.
     """
     return Mat(np.eye(int(n)))
+
+
+def as_mat(x):
+    """Convert any 2D array-like to a Mat.
+
+    Parameters
+    ----------
+    x : array-like
+        Input data. Must be convertible to a 2D numeric array.
+
+    Returns
+    -------
+    Mat
+        Shape ``(n, k)``.
+
+    Raises
+    ------
+    ShapeError
+        If ``x`` is not 2D after conversion.
+    TypeError
+        If ``x`` cannot be converted to a numeric array.
+    """
+    try:
+        import pandas as pd
+        if isinstance(x, pd.DataFrame):
+            return Mat(x.values.astype(float))
+    except ImportError:
+        pass
+
+    arr = np.asarray(x, dtype=float)
+
+    if arr.ndim != 2:
+        raise ShapeError(
+            f"as_mat() requires a 2D input, got ndim={arr.ndim} "
+            f"with shape {arr.shape}."
+        )
+
+    return Mat(arr)
