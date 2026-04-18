@@ -52,12 +52,42 @@
 - Goal: Verify that eye(3) returns a Mat of shape (3, 3) with identity matrix values.
 - Source: DESIGN.md §5.8 — "return Mat(np.eye(int(n)))".
 - Expected: result is Mat, shape (3, 3), values match np.eye(3).
+
+## Test: test_as_col_from_list
+- Goal: Verify that as_col([1, 2, 3]) returns ColVec with shape (3, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts flat lists and reshapes to (n,1).
+- Expected: result is ColVec, shape (3, 1), values [1.0, 2.0, 3.0].
+
+## Test: test_as_col_from_scalar
+- Goal: Verify that as_col(7) returns ColVec with shape (1, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts scalar values and reshapes to (1,1).
+- Expected: result is ColVec, shape (1, 1), value 7.0.
+
+## Test: test_as_col_from_1d_ndarray
+- Goal: Verify that as_col(np.array([1, 2, 3])) returns ColVec with shape (3, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts 1D ndarrays and reshapes to (n,1).
+- Expected: result is ColVec, shape (3, 1), values [1.0, 2.0, 3.0].
+
+## Test: test_as_col_from_2d_single_column_ndarray
+- Goal: Verify that as_col(np.ones((3, 1))) returns ColVec with shape (3, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts (n,1) arrays directly.
+- Expected: result is ColVec, shape (3, 1), values are all ones.
+
+## Test: test_as_col_from_pandas_series_if_available
+- Goal: Verify that as_col(pd.Series([4, 5])) returns ColVec with shape (2, 1) when pandas is installed.
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts pandas Series.
+- Expected: result is ColVec, shape (2, 1), values [4.0, 5.0].
+
+## Test: test_as_col_rejects_2d_multi_column
+- Goal: Verify that as_col(np.ones((3, 3))) raises ShapeError.
+- Source: DESIGN_APPENDICES.md §13.3 — 2D inputs with more than one column are rejected.
+- Expected: ShapeError raised.
 """
 
 import numpy as np
 import pytest
 
-from nemopy import _c, mat, eye, ColVec, Mat
+from nemopy import _c, as_col, mat, eye, ColVec, Mat, ShapeError
 
 
 class TestColConstructor:
@@ -127,3 +157,46 @@ class TestEyeConstructor:
         assert isinstance(I, Mat)
         assert I.shape == (3, 3)
         np.testing.assert_array_equal(np.asarray(I), np.eye(3))
+
+
+class TestAsColConverter:
+    def test_as_col_from_list(self):
+        """as_col([1, 2, 3]) returns ColVec with shape (3, 1)."""
+        u = as_col([1, 2, 3])
+        assert isinstance(u, ColVec)
+        assert u.shape == (3, 1)
+        np.testing.assert_array_equal(u.flatten(), [1.0, 2.0, 3.0])
+
+    def test_as_col_from_scalar(self):
+        """as_col(7) returns ColVec with shape (1, 1)."""
+        u = as_col(7)
+        assert isinstance(u, ColVec)
+        assert u.shape == (1, 1)
+        assert u.item() == 7.0
+
+    def test_as_col_from_1d_ndarray(self):
+        """as_col(np.array([1,2,3])) returns ColVec with shape (3, 1)."""
+        u = as_col(np.array([1, 2, 3]))
+        assert isinstance(u, ColVec)
+        assert u.shape == (3, 1)
+        np.testing.assert_array_equal(u.flatten(), [1.0, 2.0, 3.0])
+
+    def test_as_col_from_2d_single_column_ndarray(self):
+        """as_col(np.ones((3,1))) returns ColVec with shape (3, 1)."""
+        u = as_col(np.ones((3, 1)))
+        assert isinstance(u, ColVec)
+        assert u.shape == (3, 1)
+        np.testing.assert_array_equal(u.flatten(), [1.0, 1.0, 1.0])
+
+    def test_as_col_from_pandas_series_if_available(self):
+        """as_col(pd.Series([4,5])) returns ColVec (2,1) when pandas is installed."""
+        pd = pytest.importorskip("pandas")
+        u = as_col(pd.Series([4, 5]))
+        assert isinstance(u, ColVec)
+        assert u.shape == (2, 1)
+        np.testing.assert_array_equal(u.flatten(), [4.0, 5.0])
+
+    def test_as_col_rejects_2d_multi_column(self):
+        """as_col(np.ones((3,3))) raises ShapeError."""
+        with pytest.raises(ShapeError):
+            as_col(np.ones((3, 3)))
