@@ -152,6 +152,30 @@
           tests/test_constructors.py::TestColConstructor::test_c_basic.
 - Expected: flat[mask] where flat is a ColVec-labelled 1-D array returns a
             plain np.ndarray of shape (k,), not a (k, 1) ColVec.
+
+## Test: test_mat_to_numpy_returns_plain_ndarray
+- Goal: Verify that Mat.to_numpy returns a plain ndarray with shape (n,k),
+        stripping the Mat subclass label.
+- Source: DESIGN_APPENDICES.md §13.2 — Mat.to_numpy contract.
+- Expected: type(result) is np.ndarray, not Mat; shape/value equality preserved.
+
+## Test: test_mat_to_list_returns_nested_rows
+- Goal: Verify that Mat.to_list returns a nested Python list with row-major
+        structure and float elements.
+- Source: DESIGN_APPENDICES.md §13.2 — Mat.to_list contract.
+- Expected: list-of-lists matching matrix rows/values.
+
+## Test: test_mat_to_dataframe_with_labels_when_pandas_installed
+- Goal: Verify that Mat.to_dataframe returns a pandas DataFrame and accepts
+        optional column and index labels.
+- Source: DESIGN_APPENDICES.md §13.2 — Mat.to_dataframe contract.
+- Expected: DataFrame with provided columns/index and matching values.
+
+## Test: test_mat_to_dataframe_raises_importerror_without_pandas
+- Goal: Verify that Mat.to_dataframe raises ImportError when pandas is not
+        available.
+- Source: DESIGN_APPENDICES.md §13.2 — Mat.to_dataframe raises ImportError.
+- Expected: ImportError is raised.
 """
 
 import numpy as np
@@ -469,3 +493,48 @@ class TestColVecGetitem:
         assert type(result) is np.ndarray
         assert result.shape == (2,)
         np.testing.assert_array_equal(result, np.array([1.0, 3.0]))
+
+
+class TestMatOutboundConversions:
+    def test_mat_to_numpy_returns_plain_ndarray(self):
+        """Mat.to_numpy returns plain ndarray with shape (n,k)."""
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_numpy()
+        assert type(result) is np.ndarray
+        assert not isinstance(result, Mat)
+        assert result.shape == (2, 2)
+        assert np.array_equal(result, np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+    def test_mat_to_list_returns_nested_rows(self):
+        """Mat.to_list returns nested Python list of row values."""
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_list()
+        assert isinstance(result, list)
+        assert result == [[1.0, 2.0], [3.0, 4.0]]
+
+    def test_mat_to_dataframe_with_labels_when_pandas_installed(self):
+        """Mat.to_dataframe returns DataFrame with optional labels."""
+        pd = pytest.importorskip("pandas")
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_dataframe(columns=["x", "y"], index=["r1", "r2"])
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (2, 2)
+        assert list(result.columns) == ["x", "y"]
+        assert list(result.index) == ["r1", "r2"]
+        assert result.to_numpy().tolist() == [[1.0, 2.0], [3.0, 4.0]]
+
+    def test_mat_to_dataframe_raises_importerror_without_pandas(self, monkeypatch):
+        """Mat.to_dataframe raises ImportError when pandas is unavailable."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError("No module named 'pandas'")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        with pytest.raises(ImportError):
+            A.to_dataframe()
