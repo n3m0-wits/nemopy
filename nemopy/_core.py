@@ -145,6 +145,37 @@ class ColVec(_VecBase):
     def __str__(self):
         return self.__repr__()
 
+    def __getitem__(self, key):
+        """Index a ColVec, enforcing column-vector semantics per §6.1.
+
+        Single-element extraction (integer or (i, 0) tuple) returns a Python
+        float; structure-preserving indexing (slice, fancy, boolean mask)
+        returns a ColVec of shape (k, 1).
+
+        Returns
+        -------
+        float, ColVec, or np.ndarray
+            Type determined by the shape of the underlying indexing result.
+        """
+        if self.ndim != 2 or self.shape[1] != 1:
+            return np.asarray(self)[key]
+
+        result = super().__getitem__(key)
+
+        if not isinstance(result, np.ndarray) or result.ndim == 0:
+            return float(result)
+
+        if result.ndim == 1 and result.size == 1:
+            return float(result[0])
+
+        if result.ndim == 1:
+            return ColVec(result.reshape(-1, 1))
+
+        if result.ndim == 2 and result.shape[1] == 1:
+            return result.view(ColVec)
+
+        return np.asarray(result)
+
 
 class Mat(_VecBase):
     """Matrix: shape (n, k) with k >= 1, dtype float64.
