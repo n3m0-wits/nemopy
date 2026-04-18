@@ -220,6 +220,9 @@ class TestMatGetItem:
         result = first_col @ (first_col.T @ v)
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
+        np.testing.assert_array_equal(
+            np.asarray(result), np.array([[76.0], [228.0], [380.0]])
+        )
 
 
 class TestUfuncPersistence:
