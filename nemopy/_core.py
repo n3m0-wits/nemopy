@@ -145,6 +145,64 @@ class ColVec(_VecBase):
     def __str__(self):
         return self.__repr__()
 
+    def to_numpy(self):
+        """Return a plain ndarray of shape (n, 1). Strips subclass label.
+
+        Use when passing to libraries that reject ndarray subclasses.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n, 1)``, dtype ``float64``.
+        """
+        return np.array(self)
+
+    def to_flat(self):
+        """Return a 1D ndarray of shape (n,).
+
+        Use when interfacing with scipy.optimize, pd.Series, or any API
+        that expects a 1D parameter vector.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n,)``, dtype ``float64``.
+        """
+        return np.asarray(self).flatten()
+
+    def to_list(self):
+        """Return a plain Python list of floats.
+
+        Returns
+        -------
+        list of float
+            Length ``n``.
+        """
+        return self.flatten().tolist()
+
+    def to_series(self, index=None, name=None):
+        """Return a pandas Series.
+
+        Parameters
+        ----------
+        index : array-like, optional
+            Index labels. Defaults to ``range(n)``.
+        name : str, optional
+            Series name.
+
+        Returns
+        -------
+        pd.Series
+
+        Raises
+        ------
+        ImportError
+            If pandas is not installed.
+        """
+        import pandas as pd
+
+        return pd.Series(self.flatten(), index=index, name=name)
+
 
 class Mat(_VecBase):
     """Matrix: shape (n, k) with k >= 1, dtype float64.
