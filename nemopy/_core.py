@@ -161,6 +161,29 @@ class Mat(_VecBase):
             )
         return arr.view(cls)
 
+    def __getitem__(self, key):
+        result = super().__getitem__(key)
+
+        if not isinstance(result, np.ndarray) or result.ndim == 0:
+            return float(result) if isinstance(result, np.generic) else result
+
+        if result.ndim == 1:
+            if isinstance(key, tuple) and len(key) == 2:
+                row_key, col_key = key
+                if isinstance(col_key, (int, np.integer)):
+                    return ColVec(result.reshape(-1, 1))
+                if isinstance(row_key, (int, np.integer)):
+                    return Mat(result.reshape(1, -1))
+            return ColVec(result.reshape(-1, 1))
+
+        if result.ndim == 2 and result.shape[1] == 1:
+            return result.view(ColVec)
+
+        if result.ndim == 2:
+            return result.view(Mat)
+
+        return np.asarray(result)
+
     def __repr__(self):
         rows = self.tolist()
         row_strs = [", ".join(f"{v:.6g}" for v in row) for row in rows]
