@@ -101,12 +101,75 @@
         behavioural difference from .T).
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
+## Test: test_is_scalar_accepts_specified_scalar_types
+- Goal: Verify `_is_scalar` returns True for all scalar categories required
+        by the spec.
+- Source: DESIGN.md §7.2 — int/float/complex, np.generic, 0D ndarray.
+- Expected: `_is_scalar(...) is True` for all listed scalar categories.
+
+## Test: test_is_scalar_rejects_non_scalar_arrays
+- Goal: Verify `_is_scalar` returns False for non-scalar operands.
+- Source: DESIGN.md §7.2 — non-0D arrays are not scalar.
+- Expected: `_is_scalar(...) is False` for 1D/2D ndarray and list.
+
+## Test: test_check_shapes_permits_scalar_operand
+- Goal: Verify `_check_shapes` allows scalar-vs-array arithmetic.
+- Source: DESIGN.md §7.3 — scalar operations always permitted.
+- Expected: `_check_shapes(np.ones((3,1)), 5.0, "*")` does not raise.
+
+## Test: test_check_shapes_raises_for_array_shape_mismatch
+- Goal: Verify `_check_shapes` raises ShapeError for mismatched array shapes.
+- Source: DESIGN.md §7.3 — raise ShapeError when both operands are arrays
+          with different shapes.
+- Expected: `_check_shapes((3,1), (2,1), "*")` raises ShapeError.
+
+## Test: test_binary_arithmetic_guards_shape_mismatch_for_all_operators
+- Goal: Verify each guarded binary operator raises ShapeError on mismatched
+        array shapes.
+- Source: DESIGN.md §7.4 — `*`, `+`, `-`, `/` call `_check_shapes` before super.
+- Expected: `u * v`, `u + v`, `u - v`, `u / v` all raise ShapeError for
+            shape (3,1) vs (2,1).
+
+## Test: test_reflected_arithmetic_guards_shape_mismatch_for_all_operators
+- Goal: Verify each reflected guarded operator raises ShapeError on mismatched
+        array shapes.
+- Source: DESIGN.md §7.4 — reflected forms call `_check_shapes` before super.
+- Expected: `arr * u`, `arr + u`, `arr - u`, `arr / u` all raise ShapeError
+            for shape (2,1) vs (3,1).
+
+## Test: test_scalar_arithmetic_passes_for_all_operators
+- Goal: Verify scalar arithmetic remains permitted through all guarded
+        operators.
+- Source: DESIGN.md §7.1/§7.3 — scalar operations are always permitted.
+- Expected: `u * 2`, `2 * u`, `u + 2`, `2 + u`, `u - 2`, `2 - u`, `u / 2`,
+            `2 / u` do not raise and preserve shape.
+
+## Test: test_matmul_warns_for_plain_transposed_like_right_ndarray
+- Goal: Verify `_VecBase @ ndarray` emits `ConventionWarning` when the plain
+        right operand is 2D with `shape[0] < shape[1]`.
+- Source: DESIGN.md §7.5 — warning heuristic for plain ndarray right operand.
+- Expected: warning emitted once; `@` result equals NumPy matmul output.
+
+## Test: test_rmatmul_warns_for_plain_transposed_like_left_ndarray
+- Goal: Verify `ndarray @ _VecBase` emits `ConventionWarning` when the plain
+        left operand is 2D with `shape[0] < shape[1]`.
+- Source: DESIGN.md §7.5 — warning heuristic for plain ndarray left operand.
+- Expected: warning emitted once; `@` result equals NumPy matmul output.
+
+## Test: test_matmul_no_warning_when_both_operands_are_nemopy_types
+- Goal: Verify no `ConventionWarning` is emitted when both operands in `@`
+        are `ColVec`/`Mat` subclasses.
+- Source: DESIGN.md §7.5 — warning applies only to plain ndarray operands.
+- Expected: no warnings for `ColVec @ Mat` and `Mat @ ColVec`.
 """
 
 import numpy as np
 import pytest
+import warnings
 
 from nemopy import ColVec, Mat, ShapeError, ConventionWarning
+from nemopy._constructors import _c
+from nemopy._operators import _is_scalar, _check_shapes
 
 
 class TestShapeError:
@@ -272,3 +335,109 @@ class TestConjugateTranspose:
         assert isinstance(result, Mat)
         assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
+class TestShapeGuardHelpers:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            1,
+            2.0,
+            3 + 4j,
+            np.float64(1.5),
+            np.array(7.0),
+        ],
+    )
+    def test_is_scalar_accepts_specified_scalar_types(self, value):
+        """_is_scalar returns True for all scalar categories in §7.2."""
+        assert _is_scalar(value) is True
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            [1, 2, 3],
+            np.array([1.0, 2.0, 3.0]),
+            np.ones((2, 1)),
+        ],
+    )
+    def test_is_scalar_rejects_non_scalar_arrays(self, value):
+        """_is_scalar returns False for non-0D arrays and non-scalars."""
+        assert _is_scalar(value) is False
+
+    def test_check_shapes_permits_scalar_operand(self):
+        """_check_shapes allows scalar-vs-array operations."""
+        _check_shapes(np.ones((3, 1)), 5.0, "*")
+
+    def test_check_shapes_raises_for_array_shape_mismatch(self):
+        """_check_shapes raises ShapeError on mismatched array shapes."""
+        with pytest.raises(ShapeError):
+            _check_shapes(np.ones((3, 1)), np.ones((2, 1)), "*")
+
+
+class TestShapeGuardedOperators:
+    @pytest.mark.parametrize("op", [lambda a, b: a * b, lambda a, b: a + b, lambda a, b: a - b, lambda a, b: a / b])
+    def test_binary_arithmetic_guards_shape_mismatch_for_all_operators(self, op):
+        """Binary *, +, -, / must raise ShapeError on mismatched array shapes."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5]
+        with pytest.raises(ShapeError):
+            op(u, v)
+
+    @pytest.mark.parametrize("op", [lambda a, b: a * b, lambda a, b: a + b, lambda a, b: a - b, lambda a, b: a / b])
+    def test_reflected_arithmetic_guards_shape_mismatch_for_all_operators(self, op):
+        """Reflected *, +, -, / must raise ShapeError on mismatched array shapes."""
+        u = _c[1, 2, 3]
+        arr = np.ones((2, 1))
+        with pytest.raises(ShapeError):
+            op(arr, u)
+
+    @pytest.mark.parametrize(
+        "op",
+        [
+            lambda x: x * 2.0,
+            lambda x: 2.0 * x,
+            lambda x: x + 2.0,
+            lambda x: 2.0 + x,
+            lambda x: x - 2.0,
+            lambda x: 2.0 - x,
+            lambda x: x / 2.0,
+            lambda x: 2.0 / x,
+        ],
+    )
+    def test_scalar_arithmetic_passes_for_all_operators(self, op):
+        """Scalar arithmetic must pass through guarded operators without ShapeError."""
+        u = _c[1, 2, 4]
+        result = op(u)
+        assert result.shape == (3, 1)
+
+
+class TestMatmulConventionWarnings:
+    def test_matmul_warns_for_plain_transposed_like_right_ndarray(self):
+        """_VecBase @ plain 2D ndarray warns when right operand looks transposed."""
+        left = _c[1, 2]
+        right = np.array([[3.0, 4.0, 5.0]])
+        with pytest.warns(ConventionWarning):
+            result = left @ right
+        expected = np.asarray(left) @ right
+        assert np.array_equal(np.asarray(result), expected)
+
+    def test_rmatmul_warns_for_plain_transposed_like_left_ndarray(self):
+        """plain 2D ndarray @ _VecBase warns when left operand looks transposed."""
+        left = np.array([[1.0, 2.0]])
+        right = _c[3, 4]
+        with pytest.warns(ConventionWarning):
+            result = left @ right
+        expected = left @ np.asarray(right)
+        assert np.array_equal(np.asarray(result), expected)
+
+    def test_matmul_no_warning_when_both_operands_are_nemopy_types(self):
+        """No warning when both @ operands are ColVec/Mat."""
+        left_vec = _c[1, 2]
+        right_mat = Mat(np.array([[3.0, 4.0, 5.0]]))
+        left_mat = Mat(np.array([[1.0, 2.0]]))
+        right_vec = _c[3, 4]
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _ = left_vec @ right_mat
+            _ = left_mat @ right_vec
+
+        assert len(caught) == 0
