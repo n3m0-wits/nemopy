@@ -190,4 +190,4 @@ class TestAsMatConstructor:
         A = as_mat(df)
         assert isinstance(A, Mat)
         assert A.shape == (2, 2)
-        np.testing.assert_array_equal(np.asarray(A), np.array([[1.0, 3.0], [2.0, 4.0]]))
+        np.testing.assert_array_equal(np.asarray(A), df.values.astype(float))
