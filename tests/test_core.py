@@ -503,6 +503,7 @@ class TestMatOutboundConversions:
         assert type(result) is np.ndarray
         assert not isinstance(result, Mat)
         assert result.shape == (2, 2)
+        assert result.dtype == np.float64
         assert np.array_equal(result, np.array([[1.0, 2.0], [3.0, 4.0]]))
 
     def test_mat_to_list_returns_nested_rows(self):

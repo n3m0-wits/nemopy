@@ -359,17 +359,16 @@ class Mat(_VecBase):
         Returns
         -------
         np.ndarray
-            Shape ``(n, k)`` with the same dtype as the underlying array
-            (typically ``float64`` for matrices constructed via ``Mat(...)``).
+            Shape ``(n, k)``, dtype ``float64``.
         """
         return np.array(self)
 
     def to_list(self):
-        """Return a nested list (list of rows, each a list of numbers).
+        """Return a nested list (list of rows, each a list of floats).
 
         Returns
         -------
-        list of list of numbers
+        list of list of float
             Outer list has ``n`` elements, each inner list has ``k`` elements.
         """
         return self.tolist()
