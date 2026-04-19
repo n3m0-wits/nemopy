@@ -139,15 +139,32 @@ def as_mat(x):
         If ``x`` is not 2D after conversion.
     TypeError
         If ``x`` cannot be converted to a numeric array.
+
+    Notes
+    -----
+    Nested lists are interpreted row-first (NumPy's convention), which is
+    the opposite of ``mat()``'s column-first assembly. ``as_mat([[1, 2],
+    [3, 4]])`` produces a ``Mat`` whose first row is ``[1, 2]``.
     """
     try:
         import pandas as pd
         if isinstance(x, pd.DataFrame):
-            return Mat(x.values.astype(float))
+            try:
+                return Mat(x.values.astype(float))
+            except (ValueError, TypeError) as e:
+                raise TypeError(
+                    f"as_mat() could not convert DataFrame to a numeric array."
+                ) from e
     except ImportError:
         pass
 
-    arr = np.asarray(x, dtype=float)
+    try:
+        arr = np.asarray(x, dtype=float)
+    except (ValueError, TypeError) as e:
+        raise TypeError(
+            f"as_mat() could not convert input of type {type(x).__name__} "
+            f"to a numeric array."
+        ) from e
 
     if arr.ndim != 2:
         raise ShapeError(
