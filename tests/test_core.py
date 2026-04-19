@@ -257,6 +257,74 @@ class TestMat:
             _ = A.inv
 
 
+class TestMatGetItem:
+    def test_mat_getitem_element_returns_float(self):
+        """A[i, j] returns a plain float scalar."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6]], dtype=float))
+        x = A[1, 2]
+        assert isinstance(x, float)
+        assert x == 6.0
+
+    def test_mat_getitem_single_column_returns_colvec(self):
+        """A[:, j] returns ColVec with shape (n, 1)."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        col = A[:, 1]
+        assert isinstance(col, ColVec)
+        assert col.shape == (3, 1)
+        np.testing.assert_array_equal(np.asarray(col), np.array([[2.0], [5.0], [8.0]]))
+
+    def test_mat_getitem_column_slice_returns_mat(self):
+        """A[:, j:k] returns Mat."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, 0:2]
+        assert isinstance(sub, Mat)
+        assert sub.shape == (3, 2)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0, 2.0], [4.0, 5.0], [7.0, 8.0]])
+        )
+
+    def test_mat_getitem_single_column_slice_returns_mat(self):
+        """A[:, j:k] returns Mat even when the slice selects exactly one column."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, 0:1]
+        assert isinstance(sub, Mat)
+        assert not isinstance(sub, ColVec)
+        assert sub.shape == (3, 1)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0], [4.0], [7.0]])
+        )
+
+    def test_mat_getitem_fancy_column_index_returns_mat(self):
+        """A[:, [j, k]] returns Mat."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, [0, 2]]
+        assert isinstance(sub, Mat)
+        assert sub.shape == (3, 2)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0, 3.0], [4.0, 6.0], [7.0, 9.0]])
+        )
+
+    def test_mat_getitem_row_returns_row_mat(self):
+        """A[i, :] returns Mat of shape (1, k)."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6]], dtype=float))
+        row = A[1, :]
+        assert isinstance(row, Mat)
+        assert row.shape == (1, 3)
+        np.testing.assert_array_equal(np.asarray(row), np.array([[4.0, 5.0, 6.0]]))
+
+    def test_extracted_column_works_in_matmul_without_reshape(self):
+        """A[:, j] can be used directly in @ expressions."""
+        A = Mat(np.array([[1, 2], [3, 4], [5, 6]], dtype=float))
+        v = ColVec(np.array([[7], [8], [9]], dtype=float))
+        first_col = A[:, 0]
+        result = first_col @ (first_col.T @ v)
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        np.testing.assert_array_equal(
+            np.asarray(result), np.array([[76.0], [228.0], [380.0]])
+        )
+
+
 class TestUfuncPersistence:
     def test_ufunc_preserves_types(self):
         """Element-wise ufuncs preserve ColVec/Mat type by output shape."""
