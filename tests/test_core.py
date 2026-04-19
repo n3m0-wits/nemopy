@@ -203,6 +203,16 @@
           through `_check_shapes`.
 - Expected: for each operator and each LHS type, the in-place op succeeds
             and the mutated array equals the hand-computed result.
+
+## Test: test_import_nemopy_activates_shape_guards
+- Goal: Verify that `import nemopy` (alone, without importing
+        `nemopy._operators`) activates the shape-guard monkey-patches, so
+        public users get `ShapeError` rather than NumPy's broadcasting
+        `ValueError`.
+- Source: DESIGN.md §7.4 — binary arithmetic on `_VecBase` instances must
+          raise `ShapeError` for mismatched array shapes.
+- Expected: a subprocess that only runs `import nemopy; u + v` with
+            shape-mismatched ColVecs raises `ShapeError`.
 """
 
 import numpy as np
@@ -377,6 +387,8 @@ class TestConjugateTranspose:
         assert isinstance(result, Mat)
         assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
+
+
 class TestShapeGuardHelpers:
     @pytest.mark.parametrize(
         "value",
@@ -449,6 +461,8 @@ class TestShapeGuardedOperators:
         u = _c[1, 2, 4]
         result = op(u)
         assert result.shape == (3, 1)
+
+
 class TestMatmulConventionWarnings:
     def test_matmul_warns_for_plain_transposed_like_right_ndarray(self):
         """_VecBase @ plain 2D ndarray warns when right operand looks transposed."""
@@ -597,3 +611,43 @@ class TestInplaceOperators:
         assert isinstance(result_A, Mat)
         assert not isinstance(result_A, ColVec)
         assert np.allclose(np.asarray(result_A), expected_mat)
+
+
+class TestShapeGuardsActivatedOnImport:
+    def test_import_nemopy_activates_shape_guards(self):
+        """`import nemopy` alone must activate shape-guard monkey-patches.
+
+        Uses a subprocess because this test session already imports
+        `nemopy._operators` for its helpers, which would mask the bug.
+        """
+        import subprocess
+        import sys
+        import textwrap
+
+        script = textwrap.dedent(
+            """
+            import numpy as np
+            import nemopy
+
+            u = nemopy.ColVec(np.ones((3, 1)))
+            v = nemopy.ColVec(np.ones((2, 1)))
+            try:
+                u + v
+            except nemopy.ShapeError:
+                print("SHAPE_ERROR_RAISED")
+            except Exception as exc:
+                print("WRONG_ERROR:" + type(exc).__name__)
+            else:
+                print("NO_ERROR")
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "SHAPE_ERROR_RAISED" in result.stdout, (
+            f"Expected ShapeError in subprocess, got stdout={result.stdout!r} "
+            f"stderr={result.stderr!r}"
+        )
