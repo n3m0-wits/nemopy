@@ -82,6 +82,13 @@
 - Goal: Verify that as_col(np.ones((3, 3))) raises ShapeError.
 - Source: DESIGN_APPENDICES.md §13.3 — 2D inputs with more than one column are rejected.
 - Expected: ShapeError raised.
+
+## Test: test_as_col_rejects_non_numeric_input
+- Goal: Verify that as_col raises TypeError (not ValueError) when the input
+        cannot be converted to a numeric array.
+- Source: DESIGN_APPENDICES.md §13.3 — documented TypeError contract for
+          non-numeric inputs.
+- Expected: TypeError raised for as_col(['a']).
 """
 
 import numpy as np
@@ -200,3 +207,8 @@ class TestAsColConverter:
         """as_col(np.ones((3,3))) raises ShapeError."""
         with pytest.raises(ShapeError):
             as_col(np.ones((3, 3)))
+
+    def test_as_col_rejects_non_numeric_input(self):
+        """as_col(['a']) raises TypeError per the documented contract."""
+        with pytest.raises(TypeError):
+            as_col(["a"])
