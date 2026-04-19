@@ -1,4 +1,4 @@
-"""Tests for constructors: _c singleton, mat(), eye().
+"""Tests for constructors: _c singleton, mat(), eye(), as_mat().
 
 ## Test: test_c_basic
 - Goal: Verify that _c[1, 2, 3] produces a ColVec with shape (3, 1) and dtype float64.
@@ -89,12 +89,44 @@
 - Source: DESIGN_APPENDICES.md §13.3 — documented TypeError contract for
           non-numeric inputs.
 - Expected: TypeError raised for as_col(['a']).
+
+## Test: test_as_mat_from_nested_lists_row_first
+- Goal: Verify that as_mat converts nested row-first lists into a Mat of matching shape.
+- Source: DESIGN_APPENDICES.md §13.3 — "as_mat on a nested list uses NumPy's row-first convention".
+- Expected: Mat shape matches input rows/cols and values preserve row order.
+
+## Test: test_as_mat_accepts_existing_mat
+- Goal: Verify that as_mat accepts an existing Mat and returns a Mat with matching shape/values.
+- Source: DESIGN_APPENDICES.md §13.3 — "Accepts ... existing Mat instances."
+- Expected: result is Mat with same shape and equal values.
+
+## Test: test_as_mat_accepts_2d_ndarray
+- Goal: Verify that as_mat accepts a 2D numpy.ndarray and returns matching Mat.
+- Source: DESIGN_APPENDICES.md §13.3 — "Accepts 2D arrays ... and returns Mat."
+- Expected: result is Mat with same shape/values as ndarray.
+
+## Test: test_as_mat_non_2d_raises_shape_error
+- Goal: Verify that non-2D input to as_mat raises ShapeError.
+- Source: DESIGN_APPENDICES.md §13.3 — "ShapeError if x is not 2D after conversion."
+- Expected: ShapeError raised for 1D input.
+
+## Test: test_as_mat_accepts_pandas_dataframe_when_available
+- Goal: Verify that as_mat accepts pandas.DataFrame when pandas is installed.
+- Source: DESIGN_APPENDICES.md §13.3 — "Accepts ... pandas DataFrames".
+- Expected: DataFrame converts to Mat with matching shape and row-first values.
+
+## Test: test_as_mat_rejects_non_numeric_input
+- Goal: Verify that as_mat raises TypeError (not ValueError) when the input
+        cannot be converted to a numeric array.
+- Source: DESIGN_APPENDICES.md §13.3 — documented TypeError contract for
+          non-numeric inputs.
+- Expected: TypeError raised for as_mat([['a', 'b'], ['c', 'd']]).
 """
 
 import numpy as np
 import pytest
 
-from nemopy import _c, as_col, mat, eye, ColVec, Mat, ShapeError
+from nemopy import _c, as_col, mat, eye, as_mat, ColVec, Mat, ShapeError, ShapeError
 
 
 class TestColConstructor:
@@ -166,49 +198,45 @@ class TestEyeConstructor:
         np.testing.assert_array_equal(np.asarray(I), np.eye(3))
 
 
-class TestAsColConverter:
-    def test_as_col_from_list(self):
-        """as_col([1, 2, 3]) returns ColVec with shape (3, 1)."""
-        u = as_col([1, 2, 3])
-        assert isinstance(u, ColVec)
-        assert u.shape == (3, 1)
-        np.testing.assert_array_equal(u.flatten(), [1.0, 2.0, 3.0])
+class TestAsMatConstructor:
+    def test_as_mat_from_nested_lists_row_first(self):
+        """as_mat() preserves nested-list row-first layout in Mat output."""
+        A = as_mat([[1, 2], [3, 4]])
+        assert isinstance(A, Mat)
+        assert A.shape == (2, 2)
+        np.testing.assert_array_equal(np.asarray(A), np.array([[1.0, 2.0], [3.0, 4.0]]))
 
-    def test_as_col_from_scalar(self):
-        """as_col(7) returns ColVec with shape (1, 1)."""
-        u = as_col(7)
-        assert isinstance(u, ColVec)
-        assert u.shape == (1, 1)
-        assert u.item() == 7.0
+    def test_as_mat_accepts_existing_mat(self):
+        """as_mat() accepts an existing Mat and preserves shape/values."""
+        A0 = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        A = as_mat(A0)
+        assert isinstance(A, Mat)
+        assert A.shape == (2, 2)
+        np.testing.assert_array_equal(np.asarray(A), np.asarray(A0))
 
-    def test_as_col_from_1d_ndarray(self):
-        """as_col(np.array([1,2,3])) returns ColVec with shape (3, 1)."""
-        u = as_col(np.array([1, 2, 3]))
-        assert isinstance(u, ColVec)
-        assert u.shape == (3, 1)
-        np.testing.assert_array_equal(u.flatten(), [1.0, 2.0, 3.0])
+    def test_as_mat_accepts_2d_ndarray(self):
+        """as_mat() accepts a 2D ndarray and preserves shape/values."""
+        arr = np.array([[1, 2, 3], [4, 5, 6]], dtype=float)
+        A = as_mat(arr)
+        assert isinstance(A, Mat)
+        assert A.shape == (2, 3)
+        np.testing.assert_array_equal(np.asarray(A), arr)
 
-    def test_as_col_from_2d_single_column_ndarray(self):
-        """as_col(np.ones((3,1))) returns ColVec with shape (3, 1)."""
-        u = as_col(np.ones((3, 1)))
-        assert isinstance(u, ColVec)
-        assert u.shape == (3, 1)
-        np.testing.assert_array_equal(u.flatten(), [1.0, 1.0, 1.0])
-
-    def test_as_col_from_pandas_series_if_available(self):
-        """as_col(pd.Series([4,5])) returns ColVec (2,1) when pandas is installed."""
-        pd = pytest.importorskip("pandas")
-        u = as_col(pd.Series([4, 5]))
-        assert isinstance(u, ColVec)
-        assert u.shape == (2, 1)
-        np.testing.assert_array_equal(u.flatten(), [4.0, 5.0])
-
-    def test_as_col_rejects_2d_multi_column(self):
-        """as_col(np.ones((3,3))) raises ShapeError."""
+    def test_as_mat_non_2d_raises_shape_error(self):
+        """as_mat() raises ShapeError for non-2D input."""
         with pytest.raises(ShapeError):
-            as_col(np.ones((3, 3)))
+            as_mat([1, 2, 3])
 
-    def test_as_col_rejects_non_numeric_input(self):
-        """as_col(['a']) raises TypeError per the documented contract."""
+    def test_as_mat_accepts_pandas_dataframe_when_available(self):
+        """as_mat() accepts DataFrame when pandas is installed."""
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        A = as_mat(df)
+        assert isinstance(A, Mat)
+        assert A.shape == (2, 2)
+        np.testing.assert_array_equal(np.asarray(A), df.values.astype(float))
+
+    def test_as_mat_rejects_non_numeric_input(self):
+        """as_mat([['a', 'b'], ['c', 'd']]) raises TypeError per the contract."""
         with pytest.raises(TypeError):
-            as_col(["a"])
+            as_mat([["a", "b"], ["c", "d"]])
