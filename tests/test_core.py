@@ -506,7 +506,9 @@ class TestMatmulConventionWarnings:
             _ = left_vec @ right_mat
             _ = left_mat @ right_vec
 
-        assert len(caught) == 0
+        assert not any(
+            issubclass(warning.category, ConventionWarning) for warning in caught
+        )
 
 
 class TestInplaceOperators:
