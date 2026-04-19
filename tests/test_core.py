@@ -468,12 +468,12 @@ class TestColVecGetitem:
         "indexer, expected",
         [
             pytest.param(
-                lambda u: slice(1, 4),
+                slice(1, 4),
                 np.array([[20.0], [30.0], [40.0]]),
                 id="slice",
             ),
             pytest.param(
-                lambda u: [0, 2, 4],
+                [0, 2, 4],
                 np.array([[10.0], [30.0], [50.0]]),
                 id="fancy-index",
             ),
@@ -487,7 +487,8 @@ class TestColVecGetitem:
     def test_structure_preserving_index_returns_colvec(self, indexer, expected):
         """Slice/fancy/mask indexing each return ColVec with expected values."""
         u = self._u()
-        result = u[indexer(u)]
+        key = indexer(u) if callable(indexer) else indexer
+        result = u[key]
         assert isinstance(result, ColVec)
         assert result.shape == expected.shape
         assert np.array_equal(np.asarray(result), expected)
