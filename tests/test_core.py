@@ -178,6 +178,31 @@
           view" and "the subclass label of the left-hand operand is preserved".
 - Expected: for each of the 4 operators, `id(u)` is unchanged, `type(u)` is
             unchanged, and values equal the hand-computed reference.
+
+## Test: test_inplace_shape_error_uses_bare_op_symbol
+- Goal: Verify that `ShapeError` messages from in-place operators reference
+        the bare operator token (`+`, `-`, `*`, `/`) rather than the augmented
+        form (`+=`, etc.), so callers of `_check_shapes` receive identical
+        messages whether the call came from a binary or in-place operator.
+- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes` identically.
+- Expected: the raised `ShapeError` message contains `'+'` / `'-'` / `'*'` /
+            `'/'` and does not contain `'+='` / `'-='` / `'*='` / `'/='`.
+
+## Test: test_inplace_mutates_in_place_and_preserves_label_mat
+- Goal: Verify §7.7's in-place contract (id unchanged, label preserved,
+        values correct) for `Mat` LHS, not only `ColVec` LHS.
+- Source: DESIGN.md §7.7 — in-place contract applies to all `_VecBase`
+          subclasses.
+- Expected: for each of the 4 operators, `id(A)` unchanged, `type(A)` is
+            `Mat`, values equal the hand-computed reference.
+
+## Test: test_inplace_scalar_rhs_passes
+- Goal: Verify that scalar RHS `+=`, `-=`, `*=`, `/=` do not raise and
+        produce the hand-computed result for both `ColVec` and `Mat` LHS.
+- Source: DESIGN.md §7.7 + §7.3 — scalar operations are always permitted
+          through `_check_shapes`.
+- Expected: for each operator and each LHS type, the in-place op succeeds
+            and the mutated array equals the hand-computed result.
 """
 
 import numpy as np
@@ -494,3 +519,81 @@ class TestInplaceOperators:
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
         assert np.array_equal(np.asarray(result), expected)
+
+    @pytest.mark.parametrize(
+        "op, symbol",
+        [
+            (lambda a, b: a.__iadd__(b), "+"),
+            (lambda a, b: a.__isub__(b), "-"),
+            (lambda a, b: a.__imul__(b), "*"),
+            (lambda a, b: a.__itruediv__(b), "/"),
+        ],
+    )
+    def test_inplace_shape_error_uses_bare_op_symbol(self, op, symbol):
+        """In-place ShapeError messages reference the bare operator token."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5]
+        with pytest.raises(ShapeError) as excinfo:
+            op(u, v)
+        msg = str(excinfo.value)
+        assert f"'{symbol}'" in msg
+        assert f"'{symbol}='" not in msg
+
+    @pytest.mark.parametrize(
+        "augmented, expected",
+        [
+            (lambda A, B: A.__iadd__(B), np.array([[8.0, 10.0], [12.0, 14.0]])),
+            (lambda A, B: A.__isub__(B), np.array([[-6.0, -6.0], [-6.0, -6.0]])),
+            (lambda A, B: A.__imul__(B), np.array([[7.0, 16.0], [27.0, 40.0]])),
+            (lambda A, B: A.__itruediv__(B), np.array([[1.0 / 7.0, 2.0 / 8.0], [3.0 / 9.0, 4.0 / 10.0]])),
+        ],
+    )
+    def test_inplace_mutates_in_place_and_preserves_label_mat(self, augmented, expected):
+        """In-place contract holds for Mat LHS (id unchanged, Mat label preserved, correct values)."""
+        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        B = Mat(np.array([[7.0, 8.0], [9.0, 10.0]]))
+        before = id(A)
+        result = augmented(A, B)
+        assert id(result) == before
+        assert isinstance(result, Mat)
+        assert not isinstance(result, ColVec)
+        assert result.shape == (2, 2)
+        assert np.allclose(np.asarray(result), expected)
+
+    @pytest.mark.parametrize(
+        "augmented, expected_colvec, expected_mat",
+        [
+            (
+                lambda x, s: x.__iadd__(s),
+                np.array([[3.0], [4.0], [5.0]]),
+                np.array([[3.0, 4.0], [5.0, 6.0]]),
+            ),
+            (
+                lambda x, s: x.__isub__(s),
+                np.array([[-1.0], [0.0], [1.0]]),
+                np.array([[-1.0, 0.0], [1.0, 2.0]]),
+            ),
+            (
+                lambda x, s: x.__imul__(s),
+                np.array([[2.0], [4.0], [6.0]]),
+                np.array([[2.0, 4.0], [6.0, 8.0]]),
+            ),
+            (
+                lambda x, s: x.__itruediv__(s),
+                np.array([[0.5], [1.0], [1.5]]),
+                np.array([[0.5, 1.0], [1.5, 2.0]]),
+            ),
+        ],
+    )
+    def test_inplace_scalar_rhs_passes(self, augmented, expected_colvec, expected_mat):
+        """Scalar RHS in-place ops do not raise and produce correct values for both ColVec and Mat."""
+        u = _c[1, 2, 3]
+        result_u = augmented(u, 2.0)
+        assert isinstance(result_u, ColVec)
+        assert np.allclose(np.asarray(result_u), expected_colvec)
+
+        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        result_A = augmented(A, 2.0)
+        assert isinstance(result_A, Mat)
+        assert not isinstance(result_A, ColVec)
+        assert np.allclose(np.asarray(result_A), expected_mat)
