@@ -319,26 +319,20 @@ class TestColVecGetitem:
         assert result == 10.0
 
     @pytest.mark.parametrize(
-        "indexer, expected_values",
+        "index_op, expected_values",
         [
-            ("slice", np.array([[20.0], [30.0], [40.0]])),
-            ("fancy", np.array([[10.0], [30.0], [50.0]])),
-            ("mask", np.array([[30.0], [40.0], [50.0]])),
+            (lambda u: u[1:4], np.array([[20.0], [30.0], [40.0]])),
+            (lambda u: u[[0, 2, 4]], np.array([[10.0], [30.0], [50.0]])),
+            (lambda u: u[u > 25], np.array([[30.0], [40.0], [50.0]])),
         ],
+        ids=["slice", "fancy", "mask"],
     )
     def test_structure_preserving_indexing_returns_colvec(
-        self, indexer, expected_values
+        self, index_op, expected_values
     ):
         """Slice / fancy / mask indexing all return a ColVec of shape (3, 1)."""
         u = self._u()
-        if indexer == "slice":
-            result = u[1:4]
-        elif indexer == "fancy":
-            result = u[[0, 2, 4]]
-        elif indexer == "mask":
-            result = u[u > 25]
-        else:
-            raise AssertionError(f"Unknown indexer: {indexer}")
+        result = index_op(u)
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
         assert np.array_equal(np.asarray(result), expected_values)
