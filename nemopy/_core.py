@@ -361,7 +361,7 @@ class Mat(_VecBase):
         np.ndarray
             Shape ``(n, k)``, dtype ``float64``.
         """
-        return np.array(self)
+        return np.asarray(self, dtype=np.float64)
 
     def to_list(self):
         """Return a nested list (list of rows, each a list of floats).
