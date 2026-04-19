@@ -174,6 +174,17 @@
 - Source: DESIGN_APPENDICES.md §13.2 — Mat.to_list contract.
 - Expected: list-of-lists matching matrix rows/values.
 
+## Test: test_structure_preserving_indexing_returns_colvec
+- Goal: Verify that slicing, fancy indexing, and boolean-mask indexing on a
+        ColVec all preserve column structure, returning a ColVec of shape
+        (k, 1) with the expected values. Parametrised so the three §6.1
+        table rows are covered by one test; the boolean-mask row fails
+        without the __getitem__ override, which gates the implementation
+        per CLAUDE.md §6.3.
+- Source: DESIGN.md §6.1 table rows 3, 4, 5 — "u[1:4] → ColVec (3, 1);
+          u[[0, 2, 4]] → ColVec (3, 1); u[u > 25] → ColVec (3, 1)".
+- Expected: for each indexer, result is a ColVec of shape (3, 1) with the
+            expected values.
 ## Test: test_mat_to_dataframe_with_labels_when_pandas_installed
 - Goal: Verify that Mat.to_dataframe returns a pandas DataFrame and accepts
         optional column and index labels.
@@ -562,6 +573,43 @@ class TestConjugateTranspose:
         assert np.array_equal(np.asarray(result), expected)
 
 
+class TestColVecGetitem:
+    @staticmethod
+    def _u():
+        return ColVec(np.array([[10.0], [20.0], [30.0], [40.0], [50.0]]))
+
+    def test_int_index_returns_scalar_float(self):
+        """u[0] returns a Python float equal to the first element."""
+        u = self._u()
+        result = u[0]
+        assert type(result) is float
+        assert result == 10.0
+
+    def test_tuple_index_returns_scalar_float(self):
+        """u[0, 0] returns a Python float equal to the first element."""
+        u = self._u()
+        result = u[0, 0]
+        assert type(result) is float
+        assert result == 10.0
+
+    @pytest.mark.parametrize(
+        "index_op, expected_values",
+        [
+            (lambda u: u[1:4], np.array([[20.0], [30.0], [40.0]])),
+            (lambda u: u[[0, 2, 4]], np.array([[10.0], [30.0], [50.0]])),
+            (lambda u: u[u > 25], np.array([[30.0], [40.0], [50.0]])),
+        ],
+        ids=["slice", "fancy", "mask"],
+    )
+    def test_structure_preserving_indexing_returns_colvec(
+        self, index_op, expected_values
+    ):
+        """Slice / fancy / mask indexing all return a ColVec of shape (3, 1)."""
+        u = self._u()
+        result = index_op(u)
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), expected_values)
 class TestMatOutboundConversions:
     def test_mat_to_numpy_returns_plain_ndarray(self):
         """Mat.to_numpy returns plain ndarray with shape (n,k)."""
