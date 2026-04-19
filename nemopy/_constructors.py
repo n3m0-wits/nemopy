@@ -1,10 +1,10 @@
-"""Constructors: _c singleton, mat(), eye()."""
+"""Constructors: _c singleton, mat(), eye(), as_col()."""
 
 import warnings
 
 import numpy as np
 
-from nemopy._core import ColVec, ConventionWarning, Mat
+from nemopy._core import ColVec, ConventionWarning, Mat, ShapeError
 
 
 class _ColConstructor:

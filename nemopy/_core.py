@@ -176,6 +176,64 @@ class ColVec(_VecBase):
 
         return np.asarray(result)
 
+    def to_numpy(self):
+        """Return a plain ndarray of shape (n, 1). Strips subclass label.
+
+        Use when passing to libraries that reject ndarray subclasses.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n, 1)``, dtype ``float64``.
+        """
+        return np.array(self)
+
+    def to_flat(self):
+        """Return a 1D ndarray of shape (n,).
+
+        Use when interfacing with scipy.optimize, pd.Series, or any API
+        that expects a 1D parameter vector.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n,)``, dtype ``float64``.
+        """
+        return np.asarray(self).flatten()
+
+    def to_list(self):
+        """Return a plain Python list of floats.
+
+        Returns
+        -------
+        list of float
+            Length ``n``.
+        """
+        return self.flatten().tolist()
+
+    def to_series(self, index=None, name=None):
+        """Return a pandas Series.
+
+        Parameters
+        ----------
+        index : array-like, optional
+            Index labels. Defaults to ``range(n)``.
+        name : str, optional
+            Series name.
+
+        Returns
+        -------
+        pd.Series
+
+        Raises
+        ------
+        ImportError
+            If pandas is not installed.
+        """
+        import pandas as pd
+
+        return pd.Series(self.flatten(), index=index, name=name)
+
 
 class Mat(_VecBase):
     """Matrix: shape (n, k) with k >= 1, dtype float64.
@@ -192,6 +250,33 @@ class Mat(_VecBase):
             )
         return arr.view(cls)
 
+    def __getitem__(self, key):
+        result = super().__getitem__(key)
+
+        if not isinstance(result, np.ndarray) or result.ndim == 0:
+            return float(result)
+
+        if result.ndim == 1:
+            if isinstance(key, tuple) and len(key) == 2:
+                row_key, col_key = key
+                if isinstance(col_key, (int, np.integer)):
+                    return ColVec(result.reshape(-1, 1))
+                if isinstance(row_key, (int, np.integer)):
+                    return Mat(result.reshape(1, -1))
+            # For ambiguous 1D indexing, preserve column-first convention.
+            return ColVec(result.reshape(-1, 1))
+
+        if result.ndim == 2:
+            if isinstance(key, tuple) and len(key) == 2:
+                col_key = key[1]
+                if isinstance(col_key, (slice, list, np.ndarray)):
+                    return result.view(Mat)
+            if result.shape[1] == 1:
+                return result.view(ColVec)
+            return result.view(Mat)
+
+        return np.asarray(result)
+
     def __repr__(self):
         rows = self.tolist()
         row_strs = [", ".join(f"{v:.6g}" for v in row) for row in rows]
@@ -200,3 +285,94 @@ class Mat(_VecBase):
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def inv(self):
+        """Matrix inverse A^{-1}.
+
+        Returns
+        -------
+        Mat
+            The inverse matrix, shape ``(n, n)``.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square.
+        numpy.linalg.LinAlgError
+            If the matrix is singular (not invertible).
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Only square matrices have inverses. "
+                f"This matrix has shape {self.shape}."
+            )
+        return Mat(np.linalg.inv(self))
+
+    def to_numpy(self):
+        """Return a plain ndarray of shape (n, k). Strips subclass label.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n, k)``, dtype ``float64``.
+        """
+        return np.array(self)
+
+    def to_list(self):
+        """Return a nested list (list of rows, each a list of floats).
+
+        Returns
+        -------
+        list of list of float
+            Outer list has ``n`` elements, each inner list has ``k`` elements.
+        """
+        return self.tolist()
+
+    def to_dataframe(self, columns=None, index=None):
+        """Return a pandas DataFrame.
+
+        Parameters
+        ----------
+        columns : list of str, optional
+            Column labels. Defaults to integer range.
+        index : array-like, optional
+            Row index labels.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        Raises
+        ------
+        ImportError
+            If pandas is not installed.
+        """
+        import pandas as pd
+
+        return pd.DataFrame(np.asarray(self), columns=columns, index=index)
+
+    @property
+    def is_singular(self):
+        """Whether the matrix is singular (non-invertible).
+
+        Singularity is determined using ``numpy.linalg.matrix_rank(self)``.
+        A square matrix is singular when its rank is less than its dimension.
+
+        Returns
+        -------
+        bool
+            ``True`` if the matrix is singular, ``False`` otherwise.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square. Singularity is defined only for
+            square matrices.
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Singularity is defined only for square matrices. "
+                f"This matrix has shape {self.shape}."
+            )
+        return int(np.linalg.matrix_rank(self)) < self.shape[0]
