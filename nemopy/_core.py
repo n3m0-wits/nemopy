@@ -172,7 +172,22 @@ class Mat(_VecBase):
 
     @property
     def is_singular(self):
-        """Check whether the matrix is singular (non-invertible)."""
+        """Whether the matrix is singular (non-invertible).
+
+        Singularity is determined using ``numpy.linalg.matrix_rank(self)``.
+        A square matrix is singular when its rank is less than its dimension.
+
+        Returns
+        -------
+        bool
+            ``True`` if the matrix is singular, ``False`` otherwise.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square. Singularity is defined only for
+            square matrices.
+        """
         if self.shape[0] != self.shape[1]:
             raise ShapeError(
                 f"Singularity is defined only for square matrices. "
