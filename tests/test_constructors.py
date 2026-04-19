@@ -53,6 +53,43 @@
 - Source: DESIGN.md §5.8 — "return Mat(np.eye(int(n)))".
 - Expected: result is Mat, shape (3, 3), values match np.eye(3).
 
+## Test: test_as_col_from_list
+- Goal: Verify that as_col([1, 2, 3]) returns ColVec with shape (3, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts flat lists and reshapes to (n,1).
+- Expected: result is ColVec, shape (3, 1), values [1.0, 2.0, 3.0].
+
+## Test: test_as_col_from_scalar
+- Goal: Verify that as_col(7) returns ColVec with shape (1, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts scalar values and reshapes to (1,1).
+- Expected: result is ColVec, shape (1, 1), value 7.0.
+
+## Test: test_as_col_from_1d_ndarray
+- Goal: Verify that as_col(np.array([1, 2, 3])) returns ColVec with shape (3, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts 1D ndarrays and reshapes to (n,1).
+- Expected: result is ColVec, shape (3, 1), values [1.0, 2.0, 3.0].
+
+## Test: test_as_col_from_2d_single_column_ndarray
+- Goal: Verify that as_col(np.ones((3, 1))) returns ColVec with shape (3, 1).
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts (n,1) arrays directly.
+- Expected: result is ColVec, shape (3, 1), values are all ones.
+
+## Test: test_as_col_from_pandas_series_if_available
+- Goal: Verify that as_col(pd.Series([4, 5])) returns ColVec with shape (2, 1) when pandas is installed.
+- Source: DESIGN_APPENDICES.md §13.3 — as_col accepts pandas Series.
+- Expected: result is ColVec, shape (2, 1), values [4.0, 5.0].
+
+## Test: test_as_col_rejects_2d_multi_column
+- Goal: Verify that as_col(np.ones((3, 3))) raises ShapeError.
+- Source: DESIGN_APPENDICES.md §13.3 — 2D inputs with more than one column are rejected.
+- Expected: ShapeError raised.
+
+## Test: test_as_col_rejects_non_numeric_input
+- Goal: Verify that as_col raises TypeError (not ValueError) when the input
+        cannot be converted to a numeric array.
+- Source: DESIGN_APPENDICES.md §13.3 — documented TypeError contract for
+          non-numeric inputs.
+- Expected: TypeError raised for as_col(['a']).
+
 ## Test: test_as_mat_from_nested_lists_row_first
 - Goal: Verify that as_mat converts nested row-first lists into a Mat of matching shape.
 - Source: DESIGN_APPENDICES.md §13.3 — "as_mat on a nested list uses NumPy's row-first convention".
@@ -89,7 +126,7 @@
 import numpy as np
 import pytest
 
-from nemopy import _c, mat, eye, as_mat, ColVec, Mat, ShapeError
+from nemopy import _c, as_col, mat, eye, as_mat, ColVec, Mat, ShapeError, ShapeError
 
 
 class TestColConstructor:

@@ -1,4 +1,4 @@
-"""Constructors: _c singleton, mat(), eye()."""
+"""Constructors: _c singleton, mat(), eye(), as_col()."""
 
 import warnings
 
@@ -118,58 +118,3 @@ def eye(n):
         Shape ``(n, n)`` identity matrix with dtype ``float64``.
     """
     return Mat(np.eye(int(n)))
-
-
-def as_mat(x):
-    """Convert any 2D array-like to a Mat.
-
-    Parameters
-    ----------
-    x : array-like
-        Input data. Must be convertible to a 2D numeric array.
-
-    Returns
-    -------
-    Mat
-        Shape ``(n, k)``.
-
-    Raises
-    ------
-    ShapeError
-        If ``x`` is not 2D after conversion.
-    TypeError
-        If ``x`` cannot be converted to a numeric array.
-
-    Notes
-    -----
-    Nested lists are interpreted row-first (NumPy's convention), which is
-    the opposite of ``mat()``'s column-first assembly. ``as_mat([[1, 2],
-    [3, 4]])`` produces a ``Mat`` whose first row is ``[1, 2]``.
-    """
-    try:
-        import pandas as pd
-        if isinstance(x, pd.DataFrame):
-            try:
-                return Mat(x.values.astype(float))
-            except (ValueError, TypeError) as e:
-                raise TypeError(
-                    f"as_mat() could not convert DataFrame to a numeric array."
-                ) from e
-    except ImportError:
-        pass
-
-    try:
-        arr = np.asarray(x, dtype=float)
-    except (ValueError, TypeError) as e:
-        raise TypeError(
-            f"as_mat() could not convert input of type {type(x).__name__} "
-            f"to a numeric array."
-        ) from e
-
-    if arr.ndim != 2:
-        raise ShapeError(
-            f"as_mat() requires a 2D input, got ndim={arr.ndim} "
-            f"with shape {arr.shape}."
-        )
-
-    return Mat(arr)
