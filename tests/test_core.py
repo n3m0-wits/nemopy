@@ -150,6 +150,18 @@
         structure, returning a ColVec.
 - Source: DESIGN.md §6.1 table row 5 — "u[u > 25] → ColVec, shape (3, 1)".
 - Expected: u[u > 25] is a ColVec of shape (3, 1) with values [30, 40, 50].
+
+## Test: test_getitem_on_malformed_colvec_delegates_to_plain_ndarray
+- Goal: Verify that ColVec.__getitem__'s guard for malformed (non-(n, 1))
+        instances delegates to plain ndarray indexing instead of applying
+        the (k, 1) wrap. Without this guard, internal NumPy paths that
+        operate on the 1-D output of ColVec.flatten() (e.g.
+        np.testing.assert_array_compare) break.
+- Source: Implementation invariant from PR #19; protects against a
+          regression observed in
+          tests/test_constructors.py::TestColConstructor::test_c_basic.
+- Expected: flat[mask] where flat is a ColVec-labelled 1-D array returns a
+            plain np.ndarray of shape (k,), not a (k, 1) ColVec.
 """
 
 import numpy as np
@@ -393,3 +405,17 @@ class TestColVecGetitem:
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
         assert np.array_equal(np.asarray(result), np.array([[30.0], [40.0], [50.0]]))
+
+    def test_getitem_on_malformed_colvec_delegates_to_plain_ndarray(self):
+        """Indexing a ColVec-labelled 1-D array (from .flatten()) delegates
+        to plain ndarray indexing rather than reshaping to (k, 1)."""
+        u = ColVec(np.array([[1.0], [2.0], [3.0]]))
+        flat = u.flatten()
+        assert isinstance(flat, ColVec)
+        assert flat.ndim == 1
+        assert flat.shape == (3,)
+        mask = np.array([True, False, True])
+        result = flat[mask]
+        assert type(result) is np.ndarray
+        assert result.shape == (2,)
+        np.testing.assert_array_equal(result, np.array([1.0, 3.0]))
