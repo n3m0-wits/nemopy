@@ -183,6 +183,15 @@ class Mat(_VecBase):
         ------
         ShapeError
             If the matrix is not square.
+
+        Examples
+        --------
+        >>> Mat([[1, 2], [3, 4]]).det
+        -2.0
+
+        See Also
+        --------
+        Mat.T : Transpose of the matrix.
         """
         if self.shape[0] != self.shape[1]:
             raise ShapeError(
