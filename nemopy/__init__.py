@@ -8,7 +8,6 @@ __all__ = [
     "_c",
     "mat",
     "eye",
-    "as_col",
     "ColVec",
     "Mat",
     "ShapeError",
