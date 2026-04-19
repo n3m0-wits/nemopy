@@ -193,6 +193,14 @@ class TestMat:
         assert A_inv.shape == (3, 3)
         assert np.array_equal(np.asarray(A_inv), np.eye(3))
 
+    def test_mat_inv_non_identity_matches_numpy_inverse(self):
+        """`.inv` returns the NumPy inverse for non-identity invertible input."""
+        A = Mat(np.array([[4.0, 7.0], [2.0, 6.0]]))
+        A_inv = A.inv
+        expected = np.linalg.inv(np.asarray(A))
+        assert isinstance(A_inv, Mat)
+        assert A_inv.shape == (2, 2)
+        assert np.allclose(np.asarray(A_inv), expected)
     def test_mat_inv_rejects_non_square(self):
         """`.inv` raises ShapeError for non-square matrices."""
         A = Mat(np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
