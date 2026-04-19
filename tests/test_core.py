@@ -467,9 +467,21 @@ class TestColVecGetitem:
     @pytest.mark.parametrize(
         "indexer, expected",
         [
-            (lambda u: slice(1, 4), np.array([[20.0], [30.0], [40.0]])),
-            (lambda u: [0, 2, 4], np.array([[10.0], [30.0], [50.0]])),
-            (lambda u: u > 25, np.array([[30.0], [40.0], [50.0]])),
+            pytest.param(
+                lambda u: slice(1, 4),
+                np.array([[20.0], [30.0], [40.0]]),
+                id="slice",
+            ),
+            pytest.param(
+                lambda u: [0, 2, 4],
+                np.array([[10.0], [30.0], [50.0]]),
+                id="fancy-index",
+            ),
+            pytest.param(
+                lambda u: u > 25,
+                np.array([[30.0], [40.0], [50.0]]),
+                id="boolean-mask",
+            ),
         ],
     )
     def test_structure_preserving_index_returns_colvec(self, indexer, expected):
