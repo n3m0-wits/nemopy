@@ -177,10 +177,13 @@ class Mat(_VecBase):
             # For ambiguous 1D indexing, preserve column-first convention.
             return ColVec(result.reshape(-1, 1))
 
-        if result.ndim == 2 and result.shape[1] == 1:
-            return result.view(ColVec)
-
         if result.ndim == 2:
+            if isinstance(key, tuple) and len(key) == 2:
+                col_key = key[1]
+                if isinstance(col_key, (slice, list, np.ndarray)):
+                    return result.view(Mat)
+            if result.shape[1] == 1:
+                return result.view(ColVec)
             return result.view(Mat)
 
         return np.asarray(result)
