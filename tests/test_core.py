@@ -335,8 +335,10 @@ class TestColVecGetitem:
             result = u[1:4]
         elif indexer == "fancy":
             result = u[[0, 2, 4]]
-        else:
+        elif indexer == "mask":
             result = u[u > 25]
+        else:
+            raise AssertionError(f"Unknown indexer: {indexer}")
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
         assert np.array_equal(np.asarray(result), expected_values)
