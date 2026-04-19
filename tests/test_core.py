@@ -593,6 +593,28 @@ class TestColVecGetitem:
         assert result == 10.0
 
     @pytest.mark.parametrize(
+        "indexer, expected",
+        [
+            pytest.param(
+                slice(1, 4),
+                np.array([[20.0], [30.0], [40.0]]),
+                id="slice",
+            ),
+            pytest.param(
+                [0, 2, 4],
+                np.array([[10.0], [30.0], [50.0]]),
+                id="fancy-index",
+            ),
+            pytest.param(
+                lambda u: u > 25,
+                np.array([[30.0], [40.0], [50.0]]),
+                id="boolean-mask",
+            ),
+        ],
+    )
+    def test_structure_preserving_index_returns_colvec(self, indexer, expected):
+        """Slice/fancy/mask indexing each return ColVec with expected values."""
+    @pytest.mark.parametrize(
         "index_op, expected_values",
         [
             (lambda u: u[1:4], np.array([[20.0], [30.0], [40.0]])),
@@ -606,10 +628,70 @@ class TestColVecGetitem:
     ):
         """Slice / fancy / mask indexing all return a ColVec of shape (3, 1)."""
         u = self._u()
-        result = index_op(u)
+        key = indexer(u) if callable(indexer) else indexer
+        result = u[key]
         assert isinstance(result, ColVec)
+        assert result.shape == expected.shape
+        assert np.array_equal(np.asarray(result), expected)
+
+    def test_getitem_on_malformed_colvec_delegates_to_plain_ndarray(self):
+        """Indexing a ColVec-labelled 1-D array (from .flatten()) delegates
+        to plain ndarray indexing rather than reshaping to (k, 1)."""
+        u = ColVec(np.array([[1.0], [2.0], [3.0]]))
+        flat = u.flatten()
+        assert isinstance(flat, ColVec)
+        assert flat.ndim == 1
+        assert flat.shape == (3,)
+        mask = np.array([True, False, True])
+        result = flat[mask]
         assert result.shape == (3, 1)
         assert np.array_equal(np.asarray(result), expected_values)
+class TestMatOutboundConversions:
+    def test_mat_to_numpy_returns_plain_ndarray(self):
+        """Mat.to_numpy returns plain ndarray with shape (n,k)."""
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_numpy()
+        assert type(result) is np.ndarray
+        assert not isinstance(result, Mat)
+        assert result.shape == (2, 2)
+        assert result.dtype == np.float64
+        assert np.array_equal(result, np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+    def test_mat_to_list_returns_nested_rows(self):
+        """Mat.to_list returns nested Python list of row values."""
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_list()
+        assert isinstance(result, list)
+        assert result == [[1.0, 2.0], [3.0, 4.0]]
+
+    def test_mat_to_dataframe_with_labels_when_pandas_installed(self):
+        """Mat.to_dataframe returns DataFrame with optional labels."""
+        pd = pytest.importorskip("pandas")
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_dataframe(columns=["x", "y"], index=["r1", "r2"])
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (2, 2)
+        assert list(result.columns) == ["x", "y"]
+        assert list(result.index) == ["r1", "r2"]
+        assert result.to_numpy().tolist() == [[1.0, 2.0], [3.0, 4.0]]
+
+    def test_mat_to_dataframe_raises_importerror_without_pandas(self, monkeypatch):
+        """Mat.to_dataframe raises ImportError when pandas is unavailable."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError("No module named 'pandas'")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        with pytest.raises(ImportError):
+            A.to_dataframe()
+
+
 class TestMatOutboundConversions:
     def test_mat_to_numpy_returns_plain_ndarray(self):
         """Mat.to_numpy returns plain ndarray with shape (n,k)."""
