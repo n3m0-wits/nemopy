@@ -213,6 +213,18 @@
           raise `ShapeError` for mismatched array shapes.
 - Expected: a subprocess that only runs `import nemopy; u + v` with
             shape-mismatched ColVecs raises `ShapeError`.
+
+## Test: test_import_nemopy_activates_inplace_shape_guards
+- Goal: Verify that `import nemopy` (alone) also activates the in-place
+        shape-guard monkey-patches, so `u += v` on shape-mismatched
+        `_VecBase` instances raises `ShapeError` without the test session
+        having imported `nemopy._operators` directly. Defends against a
+        future regression where in-place overrides drift into a module
+        that is not loaded by the package's `__init__`.
+- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes` and
+          thus must be active on the same package-import path as §7.4.
+- Expected: a subprocess that runs `import nemopy; u += v` with
+            shape-mismatched ColVecs raises `ShapeError`.
 """
 
 import numpy as np
@@ -633,6 +645,47 @@ class TestShapeGuardsActivatedOnImport:
             v = nemopy.ColVec(np.ones((2, 1)))
             try:
                 u + v
+            except nemopy.ShapeError:
+                print("SHAPE_ERROR_RAISED")
+            except Exception as exc:
+                print("WRONG_ERROR:" + type(exc).__name__)
+            else:
+                print("NO_ERROR")
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "SHAPE_ERROR_RAISED" in result.stdout, (
+            f"Expected ShapeError in subprocess, got stdout={result.stdout!r} "
+            f"stderr={result.stderr!r}"
+        )
+
+    def test_import_nemopy_activates_inplace_shape_guards(self):
+        """`import nemopy` alone must activate in-place shape-guard monkey-patches.
+
+        Sibling of `test_import_nemopy_activates_shape_guards` covering the
+        `u += v` path; uses a subprocess for the same reason — the test
+        session already imports `nemopy._operators` for its helpers, which
+        would mask a regression where in-place overrides are not wired up
+        via plain `import nemopy`.
+        """
+        import subprocess
+        import sys
+        import textwrap
+
+        script = textwrap.dedent(
+            """
+            import numpy as np
+            import nemopy
+
+            u = nemopy.ColVec(np.ones((3, 1)))
+            v = nemopy.ColVec(np.ones((2, 1)))
+            try:
+                u += v
             except nemopy.ShapeError:
                 print("SHAPE_ERROR_RAISED")
             except Exception as exc:
