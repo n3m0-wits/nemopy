@@ -89,6 +89,21 @@
           `numpy.linalg.LinAlgError` for singular matrices.
 - Expected: accessing `.inv` on a singular square matrix raises LinAlgError.
 
+## Test: test_mat_det_identity_returns_float_one
+- Goal: Verify that Mat.det on the identity matrix returns 1.0 as a Python float.
+- Source: DESIGN.md §9.2 — determinant property returns float; det(I) = 1.
+- Expected: value is float and equals 1.0.
+
+## Test: test_mat_det_singular_is_numerically_zero
+- Goal: Verify that Mat.det returns a value numerically equal to zero for singular square matrices.
+- Source: DESIGN.md §9.2 — matrix is singular iff det(A) = 0.
+- Expected: np.isclose(A.det, 0.0) is True for a singular matrix.
+
+## Test: test_mat_det_raises_for_non_square
+- Goal: Verify that Mat.det raises ShapeError on non-square matrices.
+- Source: DESIGN.md §9.2 — determinant is defined only for square matrices.
+- Expected: ShapeError is raised for shape (2,3).
+
 ## Test: test_ufunc_preserves_types
 - Goal: Verify that element-wise ufuncs (np.exp) preserve ColVec and Mat types
         based on output shape.
@@ -421,6 +436,24 @@ class TestMatGetItem:
         np.testing.assert_array_equal(
             np.asarray(result), np.array([[76.0], [228.0], [380.0]])
         )
+
+    def test_mat_det_identity_returns_float_one(self):
+        """Mat.det(identity) returns 1.0 as Python float."""
+        A = Mat(np.eye(3))
+        det = A.det
+        assert isinstance(det, float)
+        assert det == 1.0
+
+    def test_mat_det_singular_is_numerically_zero(self):
+        """Mat.det returns a numerically zero value for singular square matrices."""
+        A = Mat(np.array([[1.0, 2.0], [2.0, 4.0]]))
+        assert np.isclose(A.det, 0.0)
+
+    def test_mat_det_raises_for_non_square(self):
+        """Mat.det raises ShapeError when matrix is not square."""
+        A = Mat(np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+        with pytest.raises(ShapeError):
+            _ = A.det
 
 
 class TestUfuncPersistence:

@@ -376,3 +376,33 @@ class Mat(_VecBase):
                 f"This matrix has shape {self.shape}."
             )
         return int(np.linalg.matrix_rank(self)) < self.shape[0]
+
+    @property
+    def det(self):
+        """Determinant of the matrix.
+
+        Returns
+        -------
+        float
+            The determinant as a Python float.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square.
+
+        Examples
+        --------
+        >>> Mat([[1, 2], [3, 4]]).det
+        -2.0
+
+        See Also
+        --------
+        Mat.T : Transpose of the matrix.
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Determinant is defined only for square matrices. "
+                f"This matrix has shape {self.shape}."
+            )
+        return float(np.linalg.det(self))
