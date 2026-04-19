@@ -143,7 +143,7 @@ def as_col(x):
     TypeError
         If ``x`` cannot be converted to a numeric array.
     """
-    if isinstance(x, (int, float, complex, np.generic)):
+    if isinstance(x, (int, float, np.generic)):
         return ColVec(np.array([[float(x)]]))
 
     try:
@@ -154,7 +154,13 @@ def as_col(x):
     except ImportError:
         pass
 
-    arr = np.asarray(x, dtype=float)
+    try:
+        arr = np.asarray(x, dtype=float)
+    except (ValueError, TypeError) as e:
+        raise TypeError(
+            f"as_col() could not convert input of type {type(x).__name__} "
+            f"to a numeric array."
+        ) from e
 
     if arr.ndim == 0:
         return ColVec(arr.reshape(1, 1))
