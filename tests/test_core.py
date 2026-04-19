@@ -115,23 +115,17 @@
 - Source: DESIGN.md §6.1 table row 2 — "u[0, 0] → np.float64, scalar 10.0".
 - Expected: u[0, 0] is a float and equals 10.0.
 
-## Test: test_slice_returns_colvec
-- Goal: Verify that slicing a ColVec preserves column structure, returning a
-        ColVec of shape (k, 1) with the expected values.
-- Source: DESIGN.md §6.1 table row 3 — "u[1:4] → ColVec, shape (3, 1)".
-- Expected: u[1:4] is a ColVec of shape (3, 1) with values [20, 30, 40].
-
-## Test: test_fancy_index_returns_colvec
-- Goal: Verify that fancy indexing (list of ints) on a ColVec preserves column
-        structure, returning a ColVec.
-- Source: DESIGN.md §6.1 table row 4 — "u[[0, 2, 4]] → ColVec, shape (3, 1)".
-- Expected: u[[0, 2, 4]] is a ColVec of shape (3, 1) with values [10, 30, 50].
-
-## Test: test_boolean_mask_returns_colvec
-- Goal: Verify that boolean-mask indexing on a ColVec preserves column
-        structure, returning a ColVec.
-- Source: DESIGN.md §6.1 table row 5 — "u[u > 25] → ColVec, shape (3, 1)".
-- Expected: u[u > 25] is a ColVec of shape (3, 1) with values [30, 40, 50].
+## Test: test_structure_preserving_indexing_returns_colvec
+- Goal: Verify that slicing, fancy indexing, and boolean-mask indexing on a
+        ColVec all preserve column structure, returning a ColVec of shape
+        (k, 1) with the expected values. Parametrised so the three §6.1
+        table rows are covered by one test; the boolean-mask row fails
+        without the __getitem__ override, which gates the implementation
+        per CLAUDE.md §6.3.
+- Source: DESIGN.md §6.1 table rows 3, 4, 5 — "u[1:4] → ColVec (3, 1);
+          u[[0, 2, 4]] → ColVec (3, 1); u[u > 25] → ColVec (3, 1)".
+- Expected: for each indexer, result is a ColVec of shape (3, 1) with the
+            expected values.
 """
 
 import numpy as np
@@ -324,26 +318,25 @@ class TestColVecGetitem:
         assert type(result) is float
         assert result == 10.0
 
-    def test_slice_returns_colvec(self):
-        """u[1:4] returns a ColVec of shape (3, 1) with the sliced values."""
+    @pytest.mark.parametrize(
+        "indexer, expected_values",
+        [
+            ("slice", np.array([[20.0], [30.0], [40.0]])),
+            ("fancy", np.array([[10.0], [30.0], [50.0]])),
+            ("mask", np.array([[30.0], [40.0], [50.0]])),
+        ],
+    )
+    def test_structure_preserving_indexing_returns_colvec(
+        self, indexer, expected_values
+    ):
+        """Slice / fancy / mask indexing all return a ColVec of shape (3, 1)."""
         u = self._u()
-        result = u[1:4]
+        if indexer == "slice":
+            result = u[1:4]
+        elif indexer == "fancy":
+            result = u[[0, 2, 4]]
+        else:
+            result = u[u > 25]
         assert isinstance(result, ColVec)
         assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), np.array([[20.0], [30.0], [40.0]]))
-
-    def test_fancy_index_returns_colvec(self):
-        """u[[0, 2, 4]] returns a ColVec of shape (3, 1) with the selected values."""
-        u = self._u()
-        result = u[[0, 2, 4]]
-        assert isinstance(result, ColVec)
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), np.array([[10.0], [30.0], [50.0]]))
-
-    def test_boolean_mask_returns_colvec(self):
-        """u[u > 25] returns a ColVec of shape (3, 1) with the matching values."""
-        u = self._u()
-        result = u[u > 25]
-        assert isinstance(result, ColVec)
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), np.array([[30.0], [40.0], [50.0]]))
+        assert np.array_equal(np.asarray(result), expected_values)
