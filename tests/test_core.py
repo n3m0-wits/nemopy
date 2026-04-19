@@ -143,13 +143,30 @@
         available.
 - Source: DESIGN_APPENDICES.md §13.2 — Mat.to_dataframe raises ImportError.
 - Expected: ImportError is raised.
+
+## Test: test_is_singular_identity_is_false
+- Goal: Verify that `Mat.is_singular` returns False for an invertible
+        square matrix (identity).
+- Source: DESIGN.md §9.3 — singularity is rank(A) < n for square matrices.
+- Expected: Mat(np.eye(3)).is_singular is False.
+
+## Test: test_is_singular_rank_deficient_is_true
+- Goal: Verify that `Mat.is_singular` returns True for a square matrix with
+        linearly dependent columns.
+- Source: DESIGN.md §9.3 — uses matrix rank; singular when rank(A) < n.
+- Expected: mat(_c[1, 2], _c[2, 4]).is_singular is True.
+
+## Test: test_is_singular_non_square_raises_shape_error
+- Goal: Verify that `Mat.is_singular` rejects non-square matrices.
+- Source: DESIGN.md §9.3 — raises ShapeError when matrix is not square.
+- Expected: ShapeError is raised for Mat shape (2, 3).
 """
 
 import numpy as np
 import pytest
 import warnings
 
-from nemopy import ColVec, Mat, ShapeError, ConventionWarning
+from nemopy import _c, ColVec, ConventionWarning, Mat, ShapeError, mat
 from nemopy._constructors import _c
 from nemopy._operators import _is_scalar, _check_shapes
 
@@ -211,6 +228,24 @@ class TestMat:
         assert r.startswith("Mat(2x3):")
         assert "[1, 2, 3]" in r
         assert "[4, 5, 6]" in r
+
+
+class TestMatSingularity:
+    def test_is_singular_identity_is_false(self):
+        """Identity matrix is invertible, so `.is_singular` is False."""
+        A = Mat(np.eye(3))
+        assert A.is_singular is False
+
+    def test_is_singular_rank_deficient_is_true(self):
+        """Rank-deficient square matrix is singular."""
+        A = mat(_c[1, 2], _c[2, 4])
+        assert A.is_singular is True
+
+    def test_is_singular_non_square_raises_shape_error(self):
+        """Non-square matrices reject `.is_singular` with ShapeError."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6]], dtype=float))
+        with pytest.raises(ShapeError):
+            _ = A.is_singular
 
     def test_mat_inv_identity_returns_mat_identity(self):
         """`.inv` returns Mat identity for identity input."""
