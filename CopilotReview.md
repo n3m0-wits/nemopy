@@ -1,7 +1,7 @@
 # Copilot Design Review (Open PRs #20–#29)
 
 ## What was reviewed
-- Design source of truth: `/home/runner/work/nemopy/nemopy/.github/DESIGN.md` and `/home/runner/work/nemopy/nemopy/.github/DESIGN_APPENDICES.md`
+- Design source of truth: `.github/DESIGN.md` and `.github/DESIGN_APPENDICES.md`
 - Open PR set reviewed: #20, #21, #22, #23, #24, #25, #26, #27, #28, #29
 - Local integration simulation attempted by merging all 10 PR head branches onto `origin/main` in dependency order.
 
@@ -18,16 +18,16 @@ As currently configured, the 10 open PRs do **not** provide a guaranteed path to
 ### 2) Core feature PRs collide in the same file regions
 - **Design impact:** Required Mat/ColVec capabilities from DESIGN.md §6.3, §9.1, §9.2, §9.3 and DESIGN_APPENDICES.md §13.2 must co-exist in one `Mat` class implementation.
 - **Problem locations:**
-  - `/home/runner/work/nemopy/nemopy/nemopy/_core.py` around `Mat` class tail (current file region ~lines 169+), where PRs #20/#21/#22/#24 each append properties/methods at the same anchor.
-  - `/home/runner/work/nemopy/nemopy/nemopy/_core.py` around `Mat.__getitem__` insertion point (PR #27).
-  - `/home/runner/work/nemopy/nemopy/tests/test_core.py` import block and large appended test sections (PRs #20/#21/#22/#23/#24/#27/#28/#29).
+  - `nemopy/_core.py` around `Mat` class tail (current file region ~lines 169+), where PRs #20/#21/#22/#24 each append properties/methods at the same anchor.
+  - `nemopy/_core.py` around `Mat.__getitem__` insertion point (PR #27).
+  - `tests/test_core.py` import block and large appended test sections (PRs #20/#21/#22/#23/#24/#27/#28/#29).
 - **Why problematic:** Local merge simulation produced conflicts in `_core.py` and `tests/test_core.py` before all branches could be integrated. Without manual conflict resolution, the combined implementation cannot be verified as working.
 
 ### 3) `as_col` and `as_mat` PRs overlap and can drop one export
 - **Design impact:** DESIGN.md §2.3 requires both `as_col` and `as_mat` in `__all__`; DESIGN_APPENDICES.md §13.3 requires both inbound converters.
 - **Problem locations:**
-  - `/home/runner/work/nemopy/nemopy/nemopy/__init__.py` lines 3–13: PR #25 adds `as_col`; PR #26 adds `as_mat` in the same import/`__all__` block.
-  - `/home/runner/work/nemopy/nemopy/nemopy/_constructors.py` around end-of-file after `eye()` (current region ~line 118+): PR #25 adds `as_col`, PR #26 adds `as_mat` at the same insertion anchor.
+  - `nemopy/__init__.py` lines 3–13: PR #25 adds `as_col`; PR #26 adds `as_mat` in the same import/`__all__` block.
+  - `nemopy/_constructors.py` around end-of-file after `eye()` (current region ~line 118+): PR #25 adds `as_col`, PR #26 adds `as_mat` at the same insertion anchor.
 - **Why problematic:** These two PRs are independently correct but overlap structurally; unresolved integration can leave only one converter/export present, violating DESIGN.md §2.3.
 
 ### 4) Full runtime verification is currently blocked in this environment
