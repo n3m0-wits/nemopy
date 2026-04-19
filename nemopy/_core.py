@@ -200,3 +200,26 @@ class Mat(_VecBase):
 
     def __str__(self):
         return self.__repr__()
+
+    @property
+    def inv(self):
+        """Matrix inverse A^{-1}.
+
+        Returns
+        -------
+        Mat
+            The inverse matrix, shape ``(n, n)``.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square.
+        numpy.linalg.LinAlgError
+            If the matrix is singular (not invertible).
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Only square matrices have inverses. "
+                f"This matrix has shape {self.shape}."
+            )
+        return Mat(np.linalg.inv(self))
