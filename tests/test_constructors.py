@@ -77,6 +77,13 @@
 - Goal: Verify that as_mat accepts pandas.DataFrame when pandas is installed.
 - Source: DESIGN_APPENDICES.md §13.3 — "Accepts ... pandas DataFrames".
 - Expected: DataFrame converts to Mat with matching shape and row-first values.
+
+## Test: test_as_mat_rejects_non_numeric_input
+- Goal: Verify that as_mat raises TypeError (not ValueError) when the input
+        cannot be converted to a numeric array.
+- Source: DESIGN_APPENDICES.md §13.3 — documented TypeError contract for
+          non-numeric inputs.
+- Expected: TypeError raised for as_mat([['a', 'b'], ['c', 'd']]).
 """
 
 import numpy as np
@@ -191,3 +198,8 @@ class TestAsMatConstructor:
         assert isinstance(A, Mat)
         assert A.shape == (2, 2)
         np.testing.assert_array_equal(np.asarray(A), df.values.astype(float))
+
+    def test_as_mat_rejects_non_numeric_input(self):
+        """as_mat([['a', 'b'], ['c', 'd']]) raises TypeError per the contract."""
+        with pytest.raises(TypeError):
+            as_mat([["a", "b"], ["c", "d"]])
