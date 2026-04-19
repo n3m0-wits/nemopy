@@ -144,6 +144,7 @@
 - Source: DESIGN.md §7.1/§7.3 — scalar operations are always permitted.
 - Expected: `u * 2`, `2 * u`, `u + 2`, `2 + u`, `u - 2`, `2 - u`, `u / 2`,
             `2 / u` do not raise and preserve shape.
+
 ## Test: test_matmul_warns_for_plain_transposed_like_right_ndarray
 - Goal: Verify `_VecBase @ ndarray` emits `ConventionWarning` when the plain
         right operand is 2D with `shape[0] < shape[1]`.
