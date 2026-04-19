@@ -98,25 +98,25 @@ def __rmatmul__(self, other):
 
 
 def __iadd__(self, other):
-    _check_shapes(self, other, "+=")
+    _check_shapes(self, other, "+")
     super(_VecBase, self).__iadd__(other)
     return self
 
 
 def __isub__(self, other):
-    _check_shapes(self, other, "-=")
+    _check_shapes(self, other, "-")
     super(_VecBase, self).__isub__(other)
     return self
 
 
 def __imul__(self, other):
-    _check_shapes(self, other, "*=")
+    _check_shapes(self, other, "*")
     super(_VecBase, self).__imul__(other)
     return self
 
 
 def __itruediv__(self, other):
-    _check_shapes(self, other, "/=")
+    _check_shapes(self, other, "/")
     super(_VecBase, self).__itruediv__(other)
     return self
 
