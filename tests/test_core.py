@@ -194,6 +194,17 @@ class TestMatGetItem:
             np.asarray(sub), np.array([[1.0, 2.0], [4.0, 5.0], [7.0, 8.0]])
         )
 
+    def test_mat_getitem_single_column_slice_returns_mat(self):
+        """A[:, j:k] returns Mat even when the slice selects exactly one column."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, 0:1]
+        assert isinstance(sub, Mat)
+        assert not isinstance(sub, ColVec)
+        assert sub.shape == (3, 1)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0], [4.0], [7.0]])
+        )
+
     def test_mat_getitem_fancy_column_index_returns_mat(self):
         """A[:, [j, k]] returns Mat."""
         A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
