@@ -161,6 +161,49 @@
 - Source: DESIGN.md §7.5 — warning applies only to plain ndarray operands.
 - Expected: no warnings for `ColVec @ Mat` and `Mat @ ColVec`.
 
+## Test: test_inplace_arithmetic_mismatched_shapes_raise_shape_error
+- Goal: Verify that `+=`, `-=`, `*=`, `/=` raise `ShapeError` when LHS and RHS
+        have different array shapes.
+- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes`.
+- Expected: `ShapeError` is raised for a (3,1) LHS op= (2,1) RHS across all
+            four operators.
+
+## Test: test_inplace_mutates_in_place_and_preserves_label
+- Goal: Verify that `u += v` (and `-=`, `*=`, `/=`) mutate the existing array
+        view (`id` unchanged), preserve the subclass label, and produce the
+        hand-computed result — the three guarantees §7.7 adds beyond NumPy's
+        default augmented-assignment behaviour, which rebinds via
+        `__array_ufunc__` and thus changes the object identity.
+- Source: DESIGN.md §7.7 — "data is modified in-place on the existing array
+          view" and "the subclass label of the left-hand operand is preserved".
+- Expected: for each of the 4 operators, `id(u)` is unchanged, `type(u)` is
+            unchanged, and values equal the hand-computed reference.
+
+## Test: test_inplace_shape_error_uses_bare_op_symbol
+- Goal: Verify that `ShapeError` messages from in-place operators reference
+        the bare operator token (`+`, `-`, `*`, `/`) rather than the augmented
+        form (`+=`, etc.), so callers of `_check_shapes` receive identical
+        messages whether the call came from a binary or in-place operator.
+- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes` identically.
+- Expected: the raised `ShapeError` message contains `'+'` / `'-'` / `'*'` /
+            `'/'` and does not contain `'+='` / `'-='` / `'*='` / `'/='`.
+
+## Test: test_inplace_mutates_in_place_and_preserves_label_mat
+- Goal: Verify §7.7's in-place contract (id unchanged, label preserved,
+        values correct) for `Mat` LHS, not only `ColVec` LHS.
+- Source: DESIGN.md §7.7 — in-place contract applies to all `_VecBase`
+          subclasses.
+- Expected: for each of the 4 operators, `id(A)` unchanged, `type(A)` is
+            `Mat`, values equal the hand-computed reference.
+
+## Test: test_inplace_scalar_rhs_passes
+- Goal: Verify that scalar RHS `+=`, `-=`, `*=`, `/=` do not raise and
+        produce the hand-computed result for both `ColVec` and `Mat` LHS.
+- Source: DESIGN.md §7.7 + §7.3 — scalar operations are always permitted
+          through `_check_shapes`.
+- Expected: for each operator and each LHS type, the in-place op succeeds
+            and the mutated array equals the hand-computed result.
+
 ## Test: test_import_nemopy_activates_shape_guards
 - Goal: Verify that `import nemopy` (alone, without importing
         `nemopy._operators`) activates the shape-guard monkey-patches, so
@@ -169,6 +212,18 @@
 - Source: DESIGN.md §7.4 — binary arithmetic on `_VecBase` instances must
           raise `ShapeError` for mismatched array shapes.
 - Expected: a subprocess that only runs `import nemopy; u + v` with
+            shape-mismatched ColVecs raises `ShapeError`.
+
+## Test: test_import_nemopy_activates_inplace_shape_guards
+- Goal: Verify that `import nemopy` (alone) also activates the in-place
+        shape-guard monkey-patches, so `u += v` on shape-mismatched
+        `_VecBase` instances raises `ShapeError` without the test session
+        having imported `nemopy._operators` directly. Defends against a
+        future regression where in-place overrides drift into a module
+        that is not loaded by the package's `__init__`.
+- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes` and
+          thus must be active on the same package-import path as §7.4.
+- Expected: a subprocess that runs `import nemopy; u += v` with
             shape-mismatched ColVecs raises `ShapeError`.
 """
 
@@ -454,6 +509,122 @@ class TestMatmulConventionWarnings:
         assert len(caught) == 0
 
 
+class TestInplaceOperators:
+    @pytest.mark.parametrize(
+        "op",
+        [
+            lambda a, b: a.__iadd__(b),
+            lambda a, b: a.__isub__(b),
+            lambda a, b: a.__imul__(b),
+            lambda a, b: a.__itruediv__(b),
+        ],
+    )
+    def test_inplace_arithmetic_mismatched_shapes_raise_shape_error(self, op):
+        """All four in-place operators raise ShapeError on mismatched array shapes."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5]
+        with pytest.raises(ShapeError):
+            op(u, v)
+
+    @pytest.mark.parametrize(
+        "augmented, expected",
+        [
+            (lambda u, v: u.__iadd__(v), np.array([[5.0], [7.0], [9.0]])),
+            (lambda u, v: u.__isub__(v), np.array([[-3.0], [-3.0], [-3.0]])),
+            (lambda u, v: u.__imul__(v), np.array([[4.0], [10.0], [18.0]])),
+            (lambda u, v: u.__itruediv__(v), np.array([[0.25], [0.4], [0.5]])),
+        ],
+    )
+    def test_inplace_mutates_in_place_and_preserves_label(self, augmented, expected):
+        """`+=`, `-=`, `*=`, `/=` mutate the existing view (id unchanged), keep the ColVec label, and produce the hand-computed result."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5, 6]
+        before = id(u)
+        result = augmented(u, v)
+        assert id(result) == before
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), expected)
+
+    @pytest.mark.parametrize(
+        "op, symbol",
+        [
+            (lambda a, b: a.__iadd__(b), "+"),
+            (lambda a, b: a.__isub__(b), "-"),
+            (lambda a, b: a.__imul__(b), "*"),
+            (lambda a, b: a.__itruediv__(b), "/"),
+        ],
+    )
+    def test_inplace_shape_error_uses_bare_op_symbol(self, op, symbol):
+        """In-place ShapeError messages reference the bare operator token."""
+        u = _c[1, 2, 3]
+        v = _c[4, 5]
+        with pytest.raises(ShapeError) as excinfo:
+            op(u, v)
+        msg = str(excinfo.value)
+        assert f"'{symbol}'" in msg
+        assert f"'{symbol}='" not in msg
+
+    @pytest.mark.parametrize(
+        "augmented, expected",
+        [
+            (lambda A, B: A.__iadd__(B), np.array([[8.0, 10.0], [12.0, 14.0]])),
+            (lambda A, B: A.__isub__(B), np.array([[-6.0, -6.0], [-6.0, -6.0]])),
+            (lambda A, B: A.__imul__(B), np.array([[7.0, 16.0], [27.0, 40.0]])),
+            (lambda A, B: A.__itruediv__(B), np.array([[1.0 / 7.0, 2.0 / 8.0], [3.0 / 9.0, 4.0 / 10.0]])),
+        ],
+    )
+    def test_inplace_mutates_in_place_and_preserves_label_mat(self, augmented, expected):
+        """In-place contract holds for Mat LHS (id unchanged, Mat label preserved, correct values)."""
+        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        B = Mat(np.array([[7.0, 8.0], [9.0, 10.0]]))
+        before = id(A)
+        result = augmented(A, B)
+        assert id(result) == before
+        assert isinstance(result, Mat)
+        assert not isinstance(result, ColVec)
+        assert result.shape == (2, 2)
+        assert np.allclose(np.asarray(result), expected)
+
+    @pytest.mark.parametrize(
+        "augmented, expected_colvec, expected_mat",
+        [
+            (
+                lambda x, s: x.__iadd__(s),
+                np.array([[3.0], [4.0], [5.0]]),
+                np.array([[3.0, 4.0], [5.0, 6.0]]),
+            ),
+            (
+                lambda x, s: x.__isub__(s),
+                np.array([[-1.0], [0.0], [1.0]]),
+                np.array([[-1.0, 0.0], [1.0, 2.0]]),
+            ),
+            (
+                lambda x, s: x.__imul__(s),
+                np.array([[2.0], [4.0], [6.0]]),
+                np.array([[2.0, 4.0], [6.0, 8.0]]),
+            ),
+            (
+                lambda x, s: x.__itruediv__(s),
+                np.array([[0.5], [1.0], [1.5]]),
+                np.array([[0.5, 1.0], [1.5, 2.0]]),
+            ),
+        ],
+    )
+    def test_inplace_scalar_rhs_passes(self, augmented, expected_colvec, expected_mat):
+        """Scalar RHS in-place ops do not raise and produce correct values for both ColVec and Mat."""
+        u = _c[1, 2, 3]
+        result_u = augmented(u, 2.0)
+        assert isinstance(result_u, ColVec)
+        assert np.allclose(np.asarray(result_u), expected_colvec)
+
+        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        result_A = augmented(A, 2.0)
+        assert isinstance(result_A, Mat)
+        assert not isinstance(result_A, ColVec)
+        assert np.allclose(np.asarray(result_A), expected_mat)
+
+
 class TestShapeGuardsActivatedOnImport:
     def test_import_nemopy_activates_shape_guards(self):
         """`import nemopy` alone must activate shape-guard monkey-patches.
@@ -474,6 +645,47 @@ class TestShapeGuardsActivatedOnImport:
             v = nemopy.ColVec(np.ones((2, 1)))
             try:
                 u + v
+            except nemopy.ShapeError:
+                print("SHAPE_ERROR_RAISED")
+            except Exception as exc:
+                print("WRONG_ERROR:" + type(exc).__name__)
+            else:
+                print("NO_ERROR")
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "SHAPE_ERROR_RAISED" in result.stdout, (
+            f"Expected ShapeError in subprocess, got stdout={result.stdout!r} "
+            f"stderr={result.stderr!r}"
+        )
+
+    def test_import_nemopy_activates_inplace_shape_guards(self):
+        """`import nemopy` alone must activate in-place shape-guard monkey-patches.
+
+        Sibling of `test_import_nemopy_activates_shape_guards` covering the
+        `u += v` path; uses a subprocess for the same reason — the test
+        session already imports `nemopy._operators` for its helpers, which
+        would mask a regression where in-place overrides are not wired up
+        via plain `import nemopy`.
+        """
+        import subprocess
+        import sys
+        import textwrap
+
+        script = textwrap.dedent(
+            """
+            import numpy as np
+            import nemopy
+
+            u = nemopy.ColVec(np.ones((3, 1)))
+            v = nemopy.ColVec(np.ones((2, 1)))
+            try:
+                u += v
             except nemopy.ShapeError:
                 print("SHAPE_ERROR_RAISED")
             except Exception as exc:

@@ -95,6 +95,32 @@ def __rmatmul__(self, other):
                 stacklevel=2,
             )
     return super(_VecBase, self).__rmatmul__(other)
+
+
+def __iadd__(self, other):
+    _check_shapes(self, other, "+")
+    super(_VecBase, self).__iadd__(other)
+    return self
+
+
+def __isub__(self, other):
+    _check_shapes(self, other, "-")
+    super(_VecBase, self).__isub__(other)
+    return self
+
+
+def __imul__(self, other):
+    _check_shapes(self, other, "*")
+    super(_VecBase, self).__imul__(other)
+    return self
+
+
+def __itruediv__(self, other):
+    _check_shapes(self, other, "/")
+    super(_VecBase, self).__itruediv__(other)
+    return self
+
+
 _VecBase.__mul__ = __mul__
 _VecBase.__rmul__ = __rmul__
 _VecBase.__add__ = __add__
@@ -105,3 +131,7 @@ _VecBase.__truediv__ = __truediv__
 _VecBase.__rtruediv__ = __rtruediv__
 _VecBase.__matmul__ = __matmul__
 _VecBase.__rmatmul__ = __rmatmul__
+_VecBase.__iadd__ = __iadd__
+_VecBase.__isub__ = __isub__
+_VecBase.__imul__ = __imul__
+_VecBase.__itruediv__ = __itruediv__
