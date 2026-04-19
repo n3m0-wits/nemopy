@@ -1,10 +1,10 @@
-"""Constructors: _c singleton, mat(), eye()."""
+"""Constructors: _c singleton, mat(), eye(), as_col()."""
 
 import warnings
 
 import numpy as np
 
-from nemopy._core import ColVec, ConventionWarning, Mat
+from nemopy._core import ColVec, ConventionWarning, Mat, ShapeError
 
 
 class _ColConstructor:
@@ -118,3 +118,62 @@ def eye(n):
         Shape ``(n, n)`` identity matrix with dtype ``float64``.
     """
     return Mat(np.eye(int(n)))
+
+
+def as_col(x):
+    """Convert any array-like to a ColVec.
+
+    Accepts 1D arrays, flat lists, pandas Series, (n,1) arrays, and
+    scalar values. Performs reshaping as needed.
+
+    Parameters
+    ----------
+    x : array-like
+        Input data. Must be convertible to a 1D or (n,1) numeric array.
+
+    Returns
+    -------
+    ColVec
+        Shape ``(n, 1)``.
+
+    Raises
+    ------
+    ShapeError
+        If ``x`` is 2D with more than one column (ambiguous — which column?).
+    TypeError
+        If ``x`` cannot be converted to a numeric array.
+    """
+    if isinstance(x, (int, float, np.generic)):
+        return ColVec(np.array([[float(x)]]))
+
+    try:
+        import pandas as pd
+
+        if isinstance(x, pd.Series):
+            return ColVec(x.values.astype(float).reshape(-1, 1))
+    except ImportError:
+        pass
+
+    try:
+        arr = np.asarray(x, dtype=float)
+    except (ValueError, TypeError) as e:
+        raise TypeError(
+            f"as_col() could not convert input of type {type(x).__name__} "
+            f"to a numeric array."
+        ) from e
+
+    if arr.ndim == 0:
+        return ColVec(arr.reshape(1, 1))
+    if arr.ndim == 1:
+        return ColVec(arr.reshape(-1, 1))
+    if arr.ndim == 2 and arr.shape[1] == 1:
+        return ColVec(arr)
+    if arr.ndim == 2:
+        raise ShapeError(
+            f"as_col() received a 2D array with shape {arr.shape}. "
+            f"Cannot determine which column to extract. "
+            f"Pass a single column: as_col(arr[:, j])"
+        )
+    raise ShapeError(
+        f"as_col() requires a 1D or (n,1) input, got ndim={arr.ndim}."
+    )

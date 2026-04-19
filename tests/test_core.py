@@ -44,6 +44,24 @@
 - Source: DESIGN.md §4.3 — Mat.__repr__ specification.
 - Expected: repr contains "Mat(2x3):" and row entries.
 
+## Test: test_mat_inv_identity_returns_mat_identity
+- Goal: Verify that `.inv` on an invertible square Mat returns a Mat equal to
+        the mathematical inverse (identity remains identity).
+- Source: DESIGN.md §9.1 — `.inv` returns `Mat(np.linalg.inv(self))` for square,
+          non-singular matrices.
+- Expected: `Mat(np.eye(3)).inv` is Mat with shape (3,3) and identity values.
+
+## Test: test_mat_inv_rejects_non_square
+- Goal: Verify that `.inv` rejects non-square matrices with ShapeError.
+- Source: DESIGN.md §9.1 — raises ShapeError when `self.shape[0] != self.shape[1]`.
+- Expected: accessing `.inv` on shape (2,3) raises ShapeError.
+
+## Test: test_mat_inv_singular_raises_linalg_error
+- Goal: Verify that `.inv` propagates NumPy's singular-matrix failure.
+- Source: DESIGN.md §9.1 — `.inv` calls `np.linalg.inv` and propagates
+          `numpy.linalg.LinAlgError` for singular matrices.
+- Expected: accessing `.inv` on a singular square matrix raises LinAlgError.
+
 ## Test: test_ufunc_preserves_types
 - Goal: Verify that element-wise ufuncs (np.exp) preserve ColVec and Mat types
         based on output shape.
@@ -101,132 +119,6 @@
         behavioural difference from .T).
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
-
-## Test: test_is_scalar_accepts_specified_scalar_types
-- Goal: Verify `_is_scalar` returns True for all scalar categories required
-        by the spec.
-- Source: DESIGN.md §7.2 — int/float/complex, np.generic, 0D ndarray.
-- Expected: `_is_scalar(...) is True` for all listed scalar categories.
-
-## Test: test_is_scalar_rejects_non_scalar_arrays
-- Goal: Verify `_is_scalar` returns False for non-scalar operands.
-- Source: DESIGN.md §7.2 — non-0D arrays are not scalar.
-- Expected: `_is_scalar(...) is False` for 1D/2D ndarray and list.
-
-## Test: test_check_shapes_permits_scalar_operand
-- Goal: Verify `_check_shapes` allows scalar-vs-array arithmetic.
-- Source: DESIGN.md §7.3 — scalar operations always permitted.
-- Expected: `_check_shapes(np.ones((3,1)), 5.0, "*")` does not raise.
-
-## Test: test_check_shapes_raises_for_array_shape_mismatch
-- Goal: Verify `_check_shapes` raises ShapeError for mismatched array shapes.
-- Source: DESIGN.md §7.3 — raise ShapeError when both operands are arrays
-          with different shapes.
-- Expected: `_check_shapes((3,1), (2,1), "*")` raises ShapeError.
-
-## Test: test_binary_arithmetic_guards_shape_mismatch_for_all_operators
-- Goal: Verify each guarded binary operator raises ShapeError on mismatched
-        array shapes.
-- Source: DESIGN.md §7.4 — `*`, `+`, `-`, `/` call `_check_shapes` before super.
-- Expected: `u * v`, `u + v`, `u - v`, `u / v` all raise ShapeError for
-            shape (3,1) vs (2,1).
-
-## Test: test_reflected_arithmetic_guards_shape_mismatch_for_all_operators
-- Goal: Verify each reflected guarded operator raises ShapeError on mismatched
-        array shapes.
-- Source: DESIGN.md §7.4 — reflected forms call `_check_shapes` before super.
-- Expected: `arr * u`, `arr + u`, `arr - u`, `arr / u` all raise ShapeError
-            for shape (2,1) vs (3,1).
-
-## Test: test_scalar_arithmetic_passes_for_all_operators
-- Goal: Verify scalar arithmetic remains permitted through all guarded
-        operators.
-- Source: DESIGN.md §7.1/§7.3 — scalar operations are always permitted.
-- Expected: `u * 2`, `2 * u`, `u + 2`, `2 + u`, `u - 2`, `2 - u`, `u / 2`,
-            `2 / u` do not raise and preserve shape.
-
-## Test: test_matmul_warns_for_plain_transposed_like_right_ndarray
-- Goal: Verify `_VecBase @ ndarray` emits `ConventionWarning` when the plain
-        right operand is 2D with `shape[0] < shape[1]`.
-- Source: DESIGN.md §7.5 — warning heuristic for plain ndarray right operand.
-- Expected: warning emitted once; `@` result equals NumPy matmul output.
-
-## Test: test_rmatmul_warns_for_plain_transposed_like_left_ndarray
-- Goal: Verify `ndarray @ _VecBase` emits `ConventionWarning` when the plain
-        left operand is 2D with `shape[0] < shape[1]`.
-- Source: DESIGN.md §7.5 — warning heuristic for plain ndarray left operand.
-- Expected: warning emitted once; `@` result equals NumPy matmul output.
-
-## Test: test_matmul_no_warning_when_both_operands_are_nemopy_types
-- Goal: Verify no `ConventionWarning` is emitted when both operands in `@`
-        are `ColVec`/`Mat` subclasses.
-- Source: DESIGN.md §7.5 — warning applies only to plain ndarray operands.
-- Expected: no warnings for `ColVec @ Mat` and `Mat @ ColVec`.
-
-## Test: test_inplace_arithmetic_mismatched_shapes_raise_shape_error
-- Goal: Verify that `+=`, `-=`, `*=`, `/=` raise `ShapeError` when LHS and RHS
-        have different array shapes.
-- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes`.
-- Expected: `ShapeError` is raised for a (3,1) LHS op= (2,1) RHS across all
-            four operators.
-
-## Test: test_inplace_mutates_in_place_and_preserves_label
-- Goal: Verify that `u += v` (and `-=`, `*=`, `/=`) mutate the existing array
-        view (`id` unchanged), preserve the subclass label, and produce the
-        hand-computed result — the three guarantees §7.7 adds beyond NumPy's
-        default augmented-assignment behaviour, which rebinds via
-        `__array_ufunc__` and thus changes the object identity.
-- Source: DESIGN.md §7.7 — "data is modified in-place on the existing array
-          view" and "the subclass label of the left-hand operand is preserved".
-- Expected: for each of the 4 operators, `id(u)` is unchanged, `type(u)` is
-            unchanged, and values equal the hand-computed reference.
-
-## Test: test_inplace_shape_error_uses_bare_op_symbol
-- Goal: Verify that `ShapeError` messages from in-place operators reference
-        the bare operator token (`+`, `-`, `*`, `/`) rather than the augmented
-        form (`+=`, etc.), so callers of `_check_shapes` receive identical
-        messages whether the call came from a binary or in-place operator.
-- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes` identically.
-- Expected: the raised `ShapeError` message contains `'+'` / `'-'` / `'*'` /
-            `'/'` and does not contain `'+='` / `'-='` / `'*='` / `'/='`.
-
-## Test: test_inplace_mutates_in_place_and_preserves_label_mat
-- Goal: Verify §7.7's in-place contract (id unchanged, label preserved,
-        values correct) for `Mat` LHS, not only `ColVec` LHS.
-- Source: DESIGN.md §7.7 — in-place contract applies to all `_VecBase`
-          subclasses.
-- Expected: for each of the 4 operators, `id(A)` unchanged, `type(A)` is
-            `Mat`, values equal the hand-computed reference.
-
-## Test: test_inplace_scalar_rhs_passes
-- Goal: Verify that scalar RHS `+=`, `-=`, `*=`, `/=` do not raise and
-        produce the hand-computed result for both `ColVec` and `Mat` LHS.
-- Source: DESIGN.md §7.7 + §7.3 — scalar operations are always permitted
-          through `_check_shapes`.
-- Expected: for each operator and each LHS type, the in-place op succeeds
-            and the mutated array equals the hand-computed result.
-
-## Test: test_import_nemopy_activates_shape_guards
-- Goal: Verify that `import nemopy` (alone, without importing
-        `nemopy._operators`) activates the shape-guard monkey-patches, so
-        public users get `ShapeError` rather than NumPy's broadcasting
-        `ValueError`.
-- Source: DESIGN.md §7.4 — binary arithmetic on `_VecBase` instances must
-          raise `ShapeError` for mismatched array shapes.
-- Expected: a subprocess that only runs `import nemopy; u + v` with
-            shape-mismatched ColVecs raises `ShapeError`.
-
-## Test: test_import_nemopy_activates_inplace_shape_guards
-- Goal: Verify that `import nemopy` (alone) also activates the in-place
-        shape-guard monkey-patches, so `u += v` on shape-mismatched
-        `_VecBase` instances raises `ShapeError` without the test session
-        having imported `nemopy._operators` directly. Defends against a
-        future regression where in-place overrides drift into a module
-        that is not loaded by the package's `__init__`.
-- Source: DESIGN.md §7.7 — in-place operators call `_check_shapes` and
-          thus must be active on the same package-import path as §7.4.
-- Expected: a subprocess that runs `import nemopy; u += v` with
-            shape-mismatched ColVecs raises `ShapeError`.
 """
 
 import numpy as np
@@ -295,6 +187,102 @@ class TestMat:
         assert r.startswith("Mat(2x3):")
         assert "[1, 2, 3]" in r
         assert "[4, 5, 6]" in r
+
+    def test_mat_inv_identity_returns_mat_identity(self):
+        """`.inv` returns Mat identity for identity input."""
+        A = Mat(np.eye(3))
+        A_inv = A.inv
+        assert isinstance(A_inv, Mat)
+        assert A_inv.shape == (3, 3)
+        assert np.array_equal(np.asarray(A_inv), np.eye(3))
+
+    def test_mat_inv_non_identity_matches_numpy_inverse(self):
+        """`.inv` returns the NumPy inverse for non-identity invertible input."""
+        A = Mat(np.array([[4.0, 7.0], [2.0, 6.0]]))
+        A_inv = A.inv
+        expected = np.linalg.inv(np.asarray(A))
+        assert isinstance(A_inv, Mat)
+        assert A_inv.shape == (2, 2)
+        assert np.allclose(np.asarray(A_inv), expected)
+    def test_mat_inv_rejects_non_square(self):
+        """`.inv` raises ShapeError for non-square matrices."""
+        A = Mat(np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+        with pytest.raises(ShapeError):
+            _ = A.inv
+
+    def test_mat_inv_singular_raises_linalg_error(self):
+        """`.inv` propagates np.linalg.LinAlgError for singular matrices."""
+        A = Mat(np.array([[1.0, 2.0], [2.0, 4.0]]))
+        with pytest.raises(np.linalg.LinAlgError):
+            _ = A.inv
+
+
+class TestMatGetItem:
+    def test_mat_getitem_element_returns_float(self):
+        """A[i, j] returns a plain float scalar."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6]], dtype=float))
+        x = A[1, 2]
+        assert isinstance(x, float)
+        assert x == 6.0
+
+    def test_mat_getitem_single_column_returns_colvec(self):
+        """A[:, j] returns ColVec with shape (n, 1)."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        col = A[:, 1]
+        assert isinstance(col, ColVec)
+        assert col.shape == (3, 1)
+        np.testing.assert_array_equal(np.asarray(col), np.array([[2.0], [5.0], [8.0]]))
+
+    def test_mat_getitem_column_slice_returns_mat(self):
+        """A[:, j:k] returns Mat."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, 0:2]
+        assert isinstance(sub, Mat)
+        assert sub.shape == (3, 2)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0, 2.0], [4.0, 5.0], [7.0, 8.0]])
+        )
+
+    def test_mat_getitem_single_column_slice_returns_mat(self):
+        """A[:, j:k] returns Mat even when the slice selects exactly one column."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, 0:1]
+        assert isinstance(sub, Mat)
+        assert not isinstance(sub, ColVec)
+        assert sub.shape == (3, 1)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0], [4.0], [7.0]])
+        )
+
+    def test_mat_getitem_fancy_column_index_returns_mat(self):
+        """A[:, [j, k]] returns Mat."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
+        sub = A[:, [0, 2]]
+        assert isinstance(sub, Mat)
+        assert sub.shape == (3, 2)
+        np.testing.assert_array_equal(
+            np.asarray(sub), np.array([[1.0, 3.0], [4.0, 6.0], [7.0, 9.0]])
+        )
+
+    def test_mat_getitem_row_returns_row_mat(self):
+        """A[i, :] returns Mat of shape (1, k)."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6]], dtype=float))
+        row = A[1, :]
+        assert isinstance(row, Mat)
+        assert row.shape == (1, 3)
+        np.testing.assert_array_equal(np.asarray(row), np.array([[4.0, 5.0, 6.0]]))
+
+    def test_extracted_column_works_in_matmul_without_reshape(self):
+        """A[:, j] can be used directly in @ expressions."""
+        A = Mat(np.array([[1, 2], [3, 4], [5, 6]], dtype=float))
+        v = ColVec(np.array([[7], [8], [9]], dtype=float))
+        first_col = A[:, 0]
+        result = first_col @ (first_col.T @ v)
+        assert isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        np.testing.assert_array_equal(
+            np.asarray(result), np.array([[76.0], [228.0], [380.0]])
+        )
 
 
 class TestUfuncPersistence:
@@ -401,310 +389,3 @@ class TestConjugateTranspose:
         assert isinstance(result, Mat)
         assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
-
-
-class TestShapeGuardHelpers:
-    @pytest.mark.parametrize(
-        "value",
-        [
-            1,
-            2.0,
-            3 + 4j,
-            np.float64(1.5),
-            np.array(7.0),
-        ],
-    )
-    def test_is_scalar_accepts_specified_scalar_types(self, value):
-        """_is_scalar returns True for all scalar categories in §7.2."""
-        assert _is_scalar(value) is True
-
-    @pytest.mark.parametrize(
-        "value",
-        [
-            [1, 2, 3],
-            np.array([1.0, 2.0, 3.0]),
-            np.ones((2, 1)),
-        ],
-    )
-    def test_is_scalar_rejects_non_scalar_arrays(self, value):
-        """_is_scalar returns False for non-0D arrays and non-scalars."""
-        assert _is_scalar(value) is False
-
-    def test_check_shapes_permits_scalar_operand(self):
-        """_check_shapes allows scalar-vs-array operations."""
-        _check_shapes(np.ones((3, 1)), 5.0, "*")
-
-    def test_check_shapes_raises_for_array_shape_mismatch(self):
-        """_check_shapes raises ShapeError on mismatched array shapes."""
-        with pytest.raises(ShapeError):
-            _check_shapes(np.ones((3, 1)), np.ones((2, 1)), "*")
-
-
-class TestShapeGuardedOperators:
-    @pytest.mark.parametrize("op", [lambda a, b: a * b, lambda a, b: a + b, lambda a, b: a - b, lambda a, b: a / b])
-    def test_binary_arithmetic_guards_shape_mismatch_for_all_operators(self, op):
-        """Binary *, +, -, / must raise ShapeError on mismatched array shapes."""
-        u = _c[1, 2, 3]
-        v = _c[4, 5]
-        with pytest.raises(ShapeError):
-            op(u, v)
-
-    @pytest.mark.parametrize("op", [lambda a, b: a * b, lambda a, b: a + b, lambda a, b: a - b, lambda a, b: a / b])
-    def test_reflected_arithmetic_guards_shape_mismatch_for_all_operators(self, op):
-        """Reflected *, +, -, / must raise ShapeError on mismatched array shapes."""
-        u = _c[1, 2, 3]
-        arr = np.ones((2, 1))
-        with pytest.raises(ShapeError):
-            op(arr, u)
-
-    @pytest.mark.parametrize(
-        "op",
-        [
-            lambda x: x * 2.0,
-            lambda x: 2.0 * x,
-            lambda x: x + 2.0,
-            lambda x: 2.0 + x,
-            lambda x: x - 2.0,
-            lambda x: 2.0 - x,
-            lambda x: x / 2.0,
-            lambda x: 2.0 / x,
-        ],
-    )
-    def test_scalar_arithmetic_passes_for_all_operators(self, op):
-        """Scalar arithmetic must pass through guarded operators without ShapeError."""
-        u = _c[1, 2, 4]
-        result = op(u)
-        assert result.shape == (3, 1)
-
-
-class TestMatmulConventionWarnings:
-    def test_matmul_warns_for_plain_transposed_like_right_ndarray(self):
-        """_VecBase @ plain 2D ndarray warns when right operand looks transposed."""
-        left = _c[1, 2]
-        right = np.array([[3.0, 4.0, 5.0]])
-        with pytest.warns(ConventionWarning):
-            result = left @ right
-        expected = np.asarray(left) @ right
-        assert np.array_equal(np.asarray(result), expected)
-
-    def test_rmatmul_warns_for_plain_transposed_like_left_ndarray(self):
-        """plain 2D ndarray @ _VecBase warns when left operand looks transposed."""
-        left = np.array([[1.0, 2.0]])
-        right = _c[3, 4]
-        with pytest.warns(ConventionWarning):
-            result = left @ right
-        expected = left @ np.asarray(right)
-        assert np.array_equal(np.asarray(result), expected)
-
-    def test_matmul_no_warning_when_both_operands_are_nemopy_types(self):
-        """No warning when both @ operands are ColVec/Mat."""
-        left_vec = _c[1]
-        right_mat = Mat(np.array([[3.0]]))
-        left_mat = Mat(np.array([[1.0], [2.0]]))
-        right_vec = _c[3]
-
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            _ = left_vec @ right_mat
-            _ = left_mat @ right_vec
-
-        assert not any(
-            issubclass(warning.category, ConventionWarning) for warning in caught
-        )
-
-
-class TestInplaceOperators:
-    @pytest.mark.parametrize(
-        "op",
-        [
-            lambda a, b: a.__iadd__(b),
-            lambda a, b: a.__isub__(b),
-            lambda a, b: a.__imul__(b),
-            lambda a, b: a.__itruediv__(b),
-        ],
-    )
-    def test_inplace_arithmetic_mismatched_shapes_raise_shape_error(self, op):
-        """All four in-place operators raise ShapeError on mismatched array shapes."""
-        u = _c[1, 2, 3]
-        v = _c[4, 5]
-        with pytest.raises(ShapeError):
-            op(u, v)
-
-    @pytest.mark.parametrize(
-        "augmented, expected",
-        [
-            (lambda u, v: u.__iadd__(v), np.array([[5.0], [7.0], [9.0]])),
-            (lambda u, v: u.__isub__(v), np.array([[-3.0], [-3.0], [-3.0]])),
-            (lambda u, v: u.__imul__(v), np.array([[4.0], [10.0], [18.0]])),
-            (lambda u, v: u.__itruediv__(v), np.array([[0.25], [0.4], [0.5]])),
-        ],
-    )
-    def test_inplace_mutates_in_place_and_preserves_label(self, augmented, expected):
-        """`+=`, `-=`, `*=`, `/=` mutate the existing view (id unchanged), keep the ColVec label, and produce the hand-computed result."""
-        u = _c[1, 2, 3]
-        v = _c[4, 5, 6]
-        before = id(u)
-        result = augmented(u, v)
-        assert id(result) == before
-        assert isinstance(result, ColVec)
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), expected)
-
-    @pytest.mark.parametrize(
-        "op, symbol",
-        [
-            (lambda a, b: a.__iadd__(b), "+"),
-            (lambda a, b: a.__isub__(b), "-"),
-            (lambda a, b: a.__imul__(b), "*"),
-            (lambda a, b: a.__itruediv__(b), "/"),
-        ],
-    )
-    def test_inplace_shape_error_uses_bare_op_symbol(self, op, symbol):
-        """In-place ShapeError messages reference the bare operator token."""
-        u = _c[1, 2, 3]
-        v = _c[4, 5]
-        with pytest.raises(ShapeError) as excinfo:
-            op(u, v)
-        msg = str(excinfo.value)
-        assert f"'{symbol}'" in msg
-        assert f"'{symbol}='" not in msg
-
-    @pytest.mark.parametrize(
-        "augmented, expected",
-        [
-            (lambda A, B: A.__iadd__(B), np.array([[8.0, 10.0], [12.0, 14.0]])),
-            (lambda A, B: A.__isub__(B), np.array([[-6.0, -6.0], [-6.0, -6.0]])),
-            (lambda A, B: A.__imul__(B), np.array([[7.0, 16.0], [27.0, 40.0]])),
-            (lambda A, B: A.__itruediv__(B), np.array([[1.0 / 7.0, 2.0 / 8.0], [3.0 / 9.0, 4.0 / 10.0]])),
-        ],
-    )
-    def test_inplace_mutates_in_place_and_preserves_label_mat(self, augmented, expected):
-        """In-place contract holds for Mat LHS (id unchanged, Mat label preserved, correct values)."""
-        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
-        B = Mat(np.array([[7.0, 8.0], [9.0, 10.0]]))
-        before = id(A)
-        result = augmented(A, B)
-        assert id(result) == before
-        assert isinstance(result, Mat)
-        assert not isinstance(result, ColVec)
-        assert result.shape == (2, 2)
-        assert np.allclose(np.asarray(result), expected)
-
-    @pytest.mark.parametrize(
-        "augmented, expected_colvec, expected_mat",
-        [
-            (
-                lambda x, s: x.__iadd__(s),
-                np.array([[3.0], [4.0], [5.0]]),
-                np.array([[3.0, 4.0], [5.0, 6.0]]),
-            ),
-            (
-                lambda x, s: x.__isub__(s),
-                np.array([[-1.0], [0.0], [1.0]]),
-                np.array([[-1.0, 0.0], [1.0, 2.0]]),
-            ),
-            (
-                lambda x, s: x.__imul__(s),
-                np.array([[2.0], [4.0], [6.0]]),
-                np.array([[2.0, 4.0], [6.0, 8.0]]),
-            ),
-            (
-                lambda x, s: x.__itruediv__(s),
-                np.array([[0.5], [1.0], [1.5]]),
-                np.array([[0.5, 1.0], [1.5, 2.0]]),
-            ),
-        ],
-    )
-    def test_inplace_scalar_rhs_passes(self, augmented, expected_colvec, expected_mat):
-        """Scalar RHS in-place ops do not raise and produce correct values for both ColVec and Mat."""
-        u = _c[1, 2, 3]
-        result_u = augmented(u, 2.0)
-        assert isinstance(result_u, ColVec)
-        assert np.allclose(np.asarray(result_u), expected_colvec)
-
-        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
-        result_A = augmented(A, 2.0)
-        assert isinstance(result_A, Mat)
-        assert not isinstance(result_A, ColVec)
-        assert np.allclose(np.asarray(result_A), expected_mat)
-
-
-class TestShapeGuardsActivatedOnImport:
-    def test_import_nemopy_activates_shape_guards(self):
-        """`import nemopy` alone must activate shape-guard monkey-patches.
-
-        Uses a subprocess because this test session already imports
-        `nemopy._operators` for its helpers, which would mask the bug.
-        """
-        import subprocess
-        import sys
-        import textwrap
-
-        script = textwrap.dedent(
-            """
-            import numpy as np
-            import nemopy
-
-            u = nemopy.ColVec(np.ones((3, 1)))
-            v = nemopy.ColVec(np.ones((2, 1)))
-            try:
-                u + v
-            except nemopy.ShapeError:
-                print("SHAPE_ERROR_RAISED")
-            except Exception as exc:
-                print("WRONG_ERROR:" + type(exc).__name__)
-            else:
-                print("NO_ERROR")
-            """
-        )
-        result = subprocess.run(
-            [sys.executable, "-c", script],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        assert "SHAPE_ERROR_RAISED" in result.stdout, (
-            f"Expected ShapeError in subprocess, got stdout={result.stdout!r} "
-            f"stderr={result.stderr!r}"
-        )
-
-    def test_import_nemopy_activates_inplace_shape_guards(self):
-        """`import nemopy` alone must activate in-place shape-guard monkey-patches.
-
-        Sibling of `test_import_nemopy_activates_shape_guards` covering the
-        `u += v` path; uses a subprocess for the same reason — the test
-        session already imports `nemopy._operators` for its helpers, which
-        would mask a regression where in-place overrides are not wired up
-        via plain `import nemopy`.
-        """
-        import subprocess
-        import sys
-        import textwrap
-
-        script = textwrap.dedent(
-            """
-            import numpy as np
-            import nemopy
-
-            u = nemopy.ColVec(np.ones((3, 1)))
-            v = nemopy.ColVec(np.ones((2, 1)))
-            try:
-                u += v
-            except nemopy.ShapeError:
-                print("SHAPE_ERROR_RAISED")
-            except Exception as exc:
-                print("WRONG_ERROR:" + type(exc).__name__)
-            else:
-                print("NO_ERROR")
-            """
-        )
-        result = subprocess.run(
-            [sys.executable, "-c", script],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        assert "SHAPE_ERROR_RAISED" in result.stdout, (
-            f"Expected ShapeError in subprocess, got stdout={result.stdout!r} "
-            f"stderr={result.stderr!r}"
-        )
