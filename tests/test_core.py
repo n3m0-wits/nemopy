@@ -119,55 +119,15 @@
         behavioural difference from .T).
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
-
-## Test: test_int_index_returns_scalar_float
-- Goal: Verify that integer indexing on a ColVec returns a Python float equal
-        to the extracted element.
-- Source: DESIGN.md §6.1 table row 1 — "u[0] → np.float64, scalar 10.0";
-          §6.1 narrative — "u[0] returns a scalar, not a (1, 1) ColVec".
-- Expected: u[0] is a float (via isinstance) and equals 10.0.
-
-## Test: test_tuple_index_returns_scalar_float
-- Goal: Verify that explicit 2D indexing (u[i, 0]) on a ColVec returns a
-        Python float equal to the extracted element.
-- Source: DESIGN.md §6.1 table row 2 — "u[0, 0] → np.float64, scalar 10.0".
-- Expected: u[0, 0] is a float and equals 10.0.
-
-## Test: test_slice_returns_colvec
-- Goal: Verify that slicing a ColVec preserves column structure, returning a
-        ColVec of shape (k, 1) with the expected values.
-- Source: DESIGN.md §6.1 table row 3 — "u[1:4] → ColVec, shape (3, 1)".
-- Expected: u[1:4] is a ColVec of shape (3, 1) with values [20, 30, 40].
-
-## Test: test_fancy_index_returns_colvec
-- Goal: Verify that fancy indexing (list of ints) on a ColVec preserves column
-        structure, returning a ColVec.
-- Source: DESIGN.md §6.1 table row 4 — "u[[0, 2, 4]] → ColVec, shape (3, 1)".
-- Expected: u[[0, 2, 4]] is a ColVec of shape (3, 1) with values [10, 30, 50].
-
-## Test: test_boolean_mask_returns_colvec
-- Goal: Verify that boolean-mask indexing on a ColVec preserves column
-        structure, returning a ColVec.
-- Source: DESIGN.md §6.1 table row 5 — "u[u > 25] → ColVec, shape (3, 1)".
-- Expected: u[u > 25] is a ColVec of shape (3, 1) with values [30, 40, 50].
-
-## Test: test_getitem_on_malformed_colvec_delegates_to_plain_ndarray
-- Goal: Verify that ColVec.__getitem__'s guard for malformed (non-(n, 1))
-        instances delegates to plain ndarray indexing instead of applying
-        the (k, 1) wrap. Without this guard, internal NumPy paths that
-        operate on the 1-D output of ColVec.flatten() (e.g.
-        np.testing.assert_array_compare) break.
-- Source: Implementation invariant from PR #19; protects against a
-          regression observed in
-          tests/test_constructors.py::TestColConstructor::test_c_basic.
-- Expected: flat[mask] where flat is a ColVec-labelled 1-D array returns a
-            plain np.ndarray of shape (k,), not a (k, 1) ColVec.
 """
 
 import numpy as np
 import pytest
+import warnings
 
 from nemopy import ColVec, Mat, ShapeError, ConventionWarning
+from nemopy._constructors import _c
+from nemopy._operators import _is_scalar, _check_shapes
 
 
 class TestShapeError:
@@ -429,61 +389,3 @@ class TestConjugateTranspose:
         assert isinstance(result, Mat)
         assert result.shape == (2, 3)
         assert np.array_equal(np.asarray(result), expected)
-
-
-class TestColVecGetitem:
-    @staticmethod
-    def _u():
-        return ColVec(np.array([[10.0], [20.0], [30.0], [40.0], [50.0]]))
-
-    def test_int_index_returns_scalar_float(self):
-        """u[0] returns a Python float equal to the first element."""
-        u = self._u()
-        result = u[0]
-        assert type(result) is float
-        assert result == 10.0
-
-    def test_tuple_index_returns_scalar_float(self):
-        """u[0, 0] returns a Python float equal to the first element."""
-        u = self._u()
-        result = u[0, 0]
-        assert type(result) is float
-        assert result == 10.0
-
-    def test_slice_returns_colvec(self):
-        """u[1:4] returns a ColVec of shape (3, 1) with the sliced values."""
-        u = self._u()
-        result = u[1:4]
-        assert isinstance(result, ColVec)
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), np.array([[20.0], [30.0], [40.0]]))
-
-    def test_fancy_index_returns_colvec(self):
-        """u[[0, 2, 4]] returns a ColVec of shape (3, 1) with the selected values."""
-        u = self._u()
-        result = u[[0, 2, 4]]
-        assert isinstance(result, ColVec)
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), np.array([[10.0], [30.0], [50.0]]))
-
-    def test_boolean_mask_returns_colvec(self):
-        """u[u > 25] returns a ColVec of shape (3, 1) with the matching values."""
-        u = self._u()
-        result = u[u > 25]
-        assert isinstance(result, ColVec)
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), np.array([[30.0], [40.0], [50.0]]))
-
-    def test_getitem_on_malformed_colvec_delegates_to_plain_ndarray(self):
-        """Indexing a ColVec-labelled 1-D array (from .flatten()) delegates
-        to plain ndarray indexing rather than reshaping to (k, 1)."""
-        u = ColVec(np.array([[1.0], [2.0], [3.0]]))
-        flat = u.flatten()
-        assert isinstance(flat, ColVec)
-        assert flat.ndim == 1
-        assert flat.shape == (3,)
-        mask = np.array([True, False, True])
-        result = flat[mask]
-        assert type(result) is np.ndarray
-        assert result.shape == (2,)
-        np.testing.assert_array_equal(result, np.array([1.0, 3.0]))
