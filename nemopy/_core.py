@@ -278,6 +278,64 @@ class ColVec(_VecBase):
 
         return np.asarray(result)
 
+    def to_numpy(self):
+        """Return a plain ndarray of shape (n, 1). Strips subclass label.
+
+        Use when passing to libraries that reject ndarray subclasses.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n, 1)``, dtype ``float64``.
+        """
+        return np.array(self)
+
+    def to_flat(self):
+        """Return a 1D ndarray of shape (n,).
+
+        Use when interfacing with scipy.optimize, pd.Series, or any API
+        that expects a 1D parameter vector.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n,)``, dtype ``float64``.
+        """
+        return np.asarray(self).flatten()
+
+    def to_list(self):
+        """Return a plain Python list of floats.
+
+        Returns
+        -------
+        list of float
+            Length ``n``.
+        """
+        return self.flatten().tolist()
+
+    def to_series(self, index=None, name=None):
+        """Return a pandas Series.
+
+        Parameters
+        ----------
+        index : array-like, optional
+            Index labels. Defaults to ``range(n)``.
+        name : str, optional
+            Series name.
+
+        Returns
+        -------
+        pd.Series
+
+        Raises
+        ------
+        ImportError
+            If pandas is not installed.
+        """
+        import pandas as pd
+
+        return pd.Series(self.flatten(), index=index, name=name)
+
 
 class Mat(_VecBase):
     """Matrix: shape (n, k) with k >= 1, dtype float64.
@@ -352,6 +410,104 @@ class Mat(_VecBase):
                 f"This matrix has shape {self.shape}."
             )
         return Mat(np.linalg.inv(self))
+
+    def to_numpy(self):
+        """Return a plain ndarray of shape (n, k). Strips subclass label.
+
+        Returns
+        -------
+        np.ndarray
+            Shape ``(n, k)``, dtype ``float64``.
+        """
+        return np.array(self)
+
+    def to_list(self):
+        """Return a nested list (list of rows, each a list of floats).
+
+        Returns
+        -------
+        list of list of float
+            Outer list has ``n`` elements, each inner list has ``k`` elements.
+        """
+        return self.tolist()
+
+    def to_dataframe(self, columns=None, index=None):
+        """Return a pandas DataFrame.
+
+        Parameters
+        ----------
+        columns : list of str, optional
+            Column labels. Defaults to integer range.
+        index : array-like, optional
+            Row index labels.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        Raises
+        ------
+        ImportError
+            If pandas is not installed.
+        """
+        import pandas as pd
+
+        return pd.DataFrame(np.asarray(self), columns=columns, index=index)
+
+    @property
+    def is_singular(self):
+        """Whether the matrix is singular (non-invertible).
+
+        Singularity is determined using ``numpy.linalg.matrix_rank(self)``.
+        A square matrix is singular when its rank is less than its dimension.
+
+        Returns
+        -------
+        bool
+            ``True`` if the matrix is singular, ``False`` otherwise.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square. Singularity is defined only for
+            square matrices.
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Singularity is defined only for square matrices. "
+                f"This matrix has shape {self.shape}."
+            )
+        return int(np.linalg.matrix_rank(self)) < self.shape[0]
+
+    @property
+    def det(self):
+        """Determinant of the matrix.
+
+        Returns
+        -------
+        float
+            The determinant as a Python float.
+
+        Raises
+        ------
+        ShapeError
+            If the matrix is not square.
+
+        Examples
+        --------
+        >>> Mat([[1, 2], [3, 4]]).det
+        -2.0
+
+        See Also
+        --------
+        Mat.T : Transpose of the matrix.
+        """
+        if self.shape[0] != self.shape[1]:
+            raise ShapeError(
+                f"Determinant is defined only for square matrices. "
+                f"This matrix has shape {self.shape}."
+            )
+        return float(np.linalg.det(self))
 
     def to_numpy(self):
         """Return a plain ndarray of shape (n, k). Strips subclass label.

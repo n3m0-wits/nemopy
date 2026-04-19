@@ -28,6 +28,33 @@
 - Source: DESIGN.md §4.2 — "def __repr__(self): vals = self.flatten().tolist(); return f'ColVec({vals})'".
 - Expected: repr(_c-equivalent) == "ColVec([1.0, 2.0, 3.0])".
 
+## Test: test_colvec_to_numpy_returns_plain_ndarray_column_shape
+- Goal: Verify that ColVec.to_numpy() strips subclass label and returns plain
+        ndarray of shape (n, 1).
+- Source: DESIGN_APPENDICES.md §13.2 — "return np.array(self)".
+- Expected: type(result) is np.ndarray, not ColVec; shape is (n, 1); values match.
+
+## Test: test_colvec_to_flat_returns_plain_ndarray_1d
+- Goal: Verify that ColVec.to_flat() returns a plain 1D ndarray of shape (n,).
+- Source: DESIGN_APPENDICES.md §13.2 — "return np.asarray(self).flatten()".
+- Expected: type(result) is np.ndarray; shape is (n,); values match.
+
+## Test: test_colvec_to_list_returns_flat_float_list
+- Goal: Verify that ColVec.to_list() returns a flat Python list of floats.
+- Source: DESIGN_APPENDICES.md §13.2 — "return self.flatten().tolist()".
+- Expected: type(result) is list; contents are float values in column order.
+
+## Test: test_colvec_to_series_returns_series_with_index_and_name
+- Goal: Verify that ColVec.to_series(index, name) returns a pandas Series with
+        length n and applies provided index and name.
+- Source: DESIGN_APPENDICES.md §13.2 — `pd.Series(self.flatten(), index=index, name=name)`.
+- Expected: result is pd.Series, len n, index/name preserved, values match.
+
+## Test: test_colvec_to_series_raises_import_error_when_pandas_missing
+- Goal: Verify that ColVec.to_series() raises ImportError when pandas is not installed.
+- Source: DESIGN_APPENDICES.md §13.2 — Raises ImportError if pandas is not installed.
+- Expected: ImportError raised when pandas import fails.
+
 ## Test: test_mat_valid_construction
 - Goal: Verify that Mat accepts a 2D array and produces a Mat with correct
         shape and dtype float64.
@@ -61,6 +88,21 @@
 - Source: DESIGN.md §9.1 — `.inv` calls `np.linalg.inv` and propagates
           `numpy.linalg.LinAlgError` for singular matrices.
 - Expected: accessing `.inv` on a singular square matrix raises LinAlgError.
+
+## Test: test_mat_det_identity_returns_float_one
+- Goal: Verify that Mat.det on the identity matrix returns 1.0 as a Python float.
+- Source: DESIGN.md §9.2 — determinant property returns float; det(I) = 1.
+- Expected: value is float and equals 1.0.
+
+## Test: test_mat_det_singular_is_numerically_zero
+- Goal: Verify that Mat.det returns a value numerically equal to zero for singular square matrices.
+- Source: DESIGN.md §9.2 — matrix is singular iff det(A) = 0.
+- Expected: np.isclose(A.det, 0.0) is True for a singular matrix.
+
+## Test: test_mat_det_raises_for_non_square
+- Goal: Verify that Mat.det raises ShapeError on non-square matrices.
+- Source: DESIGN.md §9.2 — determinant is defined only for square matrices.
+- Expected: ShapeError is raised for shape (2,3).
 
 ## Test: test_ufunc_preserves_types
 - Goal: Verify that element-wise ufuncs (np.exp) preserve ColVec and Mat types
@@ -120,39 +162,6 @@
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
 
-## Test: test_int_index_returns_scalar_float
-- Goal: Verify that integer indexing on a ColVec returns a Python float equal
-        to the extracted element.
-- Source: DESIGN.md §6.1 table row 1 — "u[0] → np.float64, scalar 10.0";
-          §6.1 narrative — "u[0] returns a scalar, not a (1, 1) ColVec".
-- Expected: u[0] is a float (via isinstance) and equals 10.0.
-
-## Test: test_tuple_index_returns_scalar_float
-- Goal: Verify that explicit 2D indexing (u[i, 0]) on a ColVec returns a
-        Python float equal to the extracted element.
-- Source: DESIGN.md §6.1 table row 2 — "u[0, 0] → np.float64, scalar 10.0".
-- Expected: u[0, 0] is a float and equals 10.0.
-
-## Test: test_structure_preserving_index_returns_colvec
-- Goal: Verify that the three structure-preserving ColVec indexing forms
-        (slice, fancy index list, boolean mask) each return a ColVec of shape
-        (k, 1) with expected values.
-- Source: DESIGN.md §6.1 table rows 3–5.
-- Expected: u[1:4], u[[0, 2, 4]], and u[u > 25] each return ColVec with
-            correct values.
-
-## Test: test_getitem_on_malformed_colvec_delegates_to_plain_ndarray
-- Goal: Verify that ColVec.__getitem__'s guard for malformed (non-(n, 1))
-        instances delegates to plain ndarray indexing instead of applying
-        the (k, 1) wrap. Without this guard, internal NumPy paths that
-        operate on the 1-D output of ColVec.flatten() (e.g.
-        np.testing.assert_array_compare) break.
-- Source: Implementation invariant from PR #19; protects against a
-          regression observed in
-          tests/test_constructors.py::TestColConstructor::test_c_basic.
-- Expected: flat[mask] where flat is a ColVec-labelled 1-D array returns a
-            plain np.ndarray of shape (k,), not a (k, 1) ColVec.
-
 ## Test: test_mat_to_numpy_returns_plain_ndarray
 - Goal: Verify that Mat.to_numpy returns a plain ndarray with shape (n,k),
         stripping the Mat subclass label.
@@ -165,6 +174,17 @@
 - Source: DESIGN_APPENDICES.md §13.2 — Mat.to_list contract.
 - Expected: list-of-lists matching matrix rows/values.
 
+## Test: test_structure_preserving_indexing_returns_colvec
+- Goal: Verify that slicing, fancy indexing, and boolean-mask indexing on a
+        ColVec all preserve column structure, returning a ColVec of shape
+        (k, 1) with the expected values. Parametrised so the three §6.1
+        table rows are covered by one test; the boolean-mask row fails
+        without the __getitem__ override, which gates the implementation
+        per CLAUDE.md §6.3.
+- Source: DESIGN.md §6.1 table rows 3, 4, 5 — "u[1:4] → ColVec (3, 1);
+          u[[0, 2, 4]] → ColVec (3, 1); u[u > 25] → ColVec (3, 1)".
+- Expected: for each indexer, result is a ColVec of shape (3, 1) with the
+            expected values.
 ## Test: test_mat_to_dataframe_with_labels_when_pandas_installed
 - Goal: Verify that Mat.to_dataframe returns a pandas DataFrame and accepts
         optional column and index labels.
@@ -176,12 +196,33 @@
         available.
 - Source: DESIGN_APPENDICES.md §13.2 — Mat.to_dataframe raises ImportError.
 - Expected: ImportError is raised.
+
+## Test: test_is_singular_identity_is_false
+- Goal: Verify that `Mat.is_singular` returns False for an invertible
+        square matrix (identity).
+- Source: DESIGN.md §9.3 — singularity is rank(A) < n for square matrices.
+- Expected: Mat(np.eye(3)).is_singular is False.
+
+## Test: test_is_singular_rank_deficient_is_true
+- Goal: Verify that `Mat.is_singular` returns True for a square matrix with
+        linearly dependent columns.
+- Source: DESIGN.md §9.3 — uses matrix rank; singular when rank(A) < n.
+- Expected: mat(_c[1, 2], _c[2, 4]).is_singular is True.
+
+## Test: test_is_singular_non_square_raises_shape_error
+- Goal: Verify that `Mat.is_singular` rejects non-square matrices.
+- Source: DESIGN.md §9.3 — raises ShapeError when matrix is not square.
+- Expected: ShapeError is raised for Mat shape (2, 3).
 """
 
 import numpy as np
 import pytest
+import warnings
+from unittest import mock
 
-from nemopy import ColVec, Mat, ShapeError, ConventionWarning
+from nemopy import _c, ColVec, ConventionWarning, Mat, ShapeError, mat
+from nemopy._constructors import _c
+from nemopy._operators import _is_scalar, _check_shapes
 
 
 class TestShapeError:
@@ -219,6 +260,57 @@ class TestColVec:
         u = ColVec(np.array([[1], [2], [3]], dtype=float))
         assert repr(u) == "ColVec([1.0, 2.0, 3.0])"
 
+    def test_colvec_to_numpy_returns_plain_ndarray_column_shape(self):
+        """ColVec.to_numpy returns plain ndarray with shape (n, 1)."""
+        u = ColVec(np.array([[1], [2], [3]], dtype=float))
+        result = u.to_numpy()
+        assert type(result) is np.ndarray
+        assert not isinstance(result, ColVec)
+        assert result.shape == (3, 1)
+        np.testing.assert_array_equal(result, np.array([[1.0], [2.0], [3.0]]))
+
+    def test_colvec_to_flat_returns_plain_ndarray_1d(self):
+        """ColVec.to_flat returns plain ndarray with shape (n,)."""
+        u = ColVec(np.array([[1], [2], [3]], dtype=float))
+        result = u.to_flat()
+        assert type(result) is np.ndarray
+        assert not isinstance(result, ColVec)
+        assert result.shape == (3,)
+        np.testing.assert_array_equal(result, np.array([1.0, 2.0, 3.0]))
+
+    def test_colvec_to_list_returns_flat_float_list(self):
+        """ColVec.to_list returns a flat Python list of floats."""
+        u = ColVec(np.array([[1], [2], [3]], dtype=float))
+        result = u.to_list()
+        assert type(result) is list
+        assert result == [1.0, 2.0, 3.0]
+        assert all(isinstance(x, float) for x in result)
+
+    def test_colvec_to_series_returns_series_with_index_and_name(self):
+        """ColVec.to_series(index, name) returns pandas Series with metadata."""
+        pd = pytest.importorskip("pandas")
+        u = ColVec(np.array([[1], [2], [3]], dtype=float))
+        result = u.to_series(index=["x", "y", "z"], name="u")
+        assert isinstance(result, pd.Series)
+        assert len(result) == 3
+        assert result.name == "u"
+        assert result.index.tolist() == ["x", "y", "z"]
+        assert result.tolist() == [1.0, 2.0, 3.0]
+
+    def test_colvec_to_series_raises_import_error_when_pandas_missing(self):
+        """ColVec.to_series raises ImportError if pandas import fails."""
+        u = ColVec(np.array([[1], [2], [3]], dtype=float))
+        original_import = __import__
+
+        def fail_pandas(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError("No module named 'pandas'")
+            return original_import(name, *args, **kwargs)
+
+        with mock.patch("builtins.__import__", side_effect=fail_pandas):
+            with pytest.raises(ImportError):
+                u.to_series()
+
 
 class TestMat:
     def test_mat_valid_construction(self):
@@ -241,6 +333,24 @@ class TestMat:
         assert r.startswith("Mat(2x3):")
         assert "[1, 2, 3]" in r
         assert "[4, 5, 6]" in r
+
+
+class TestMatSingularity:
+    def test_is_singular_identity_is_false(self):
+        """Identity matrix is invertible, so `.is_singular` is False."""
+        A = Mat(np.eye(3))
+        assert A.is_singular is False
+
+    def test_is_singular_rank_deficient_is_true(self):
+        """Rank-deficient square matrix is singular."""
+        A = mat(_c[1, 2], _c[2, 4])
+        assert A.is_singular is True
+
+    def test_is_singular_non_square_raises_shape_error(self):
+        """Non-square matrices reject `.is_singular` with ShapeError."""
+        A = Mat(np.array([[1, 2, 3], [4, 5, 6]], dtype=float))
+        with pytest.raises(ShapeError):
+            _ = A.is_singular
 
     def test_mat_inv_identity_returns_mat_identity(self):
         """`.inv` returns Mat identity for identity input."""
@@ -337,6 +447,24 @@ class TestMatGetItem:
         np.testing.assert_array_equal(
             np.asarray(result), np.array([[76.0], [228.0], [380.0]])
         )
+
+    def test_mat_det_identity_returns_float_one(self):
+        """Mat.det(identity) returns 1.0 as Python float."""
+        A = Mat(np.eye(3))
+        det = A.det
+        assert isinstance(det, float)
+        assert det == 1.0
+
+    def test_mat_det_singular_is_numerically_zero(self):
+        """Mat.det returns a numerically zero value for singular square matrices."""
+        A = Mat(np.array([[1.0, 2.0], [2.0, 4.0]]))
+        assert np.isclose(A.det, 0.0)
+
+    def test_mat_det_raises_for_non_square(self):
+        """Mat.det raises ShapeError when matrix is not square."""
+        A = Mat(np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+        with pytest.raises(ShapeError):
+            _ = A.det
 
 
 class TestUfuncPersistence:
@@ -486,6 +614,19 @@ class TestColVecGetitem:
     )
     def test_structure_preserving_index_returns_colvec(self, indexer, expected):
         """Slice/fancy/mask indexing each return ColVec with expected values."""
+    @pytest.mark.parametrize(
+        "index_op, expected_values",
+        [
+            (lambda u: u[1:4], np.array([[20.0], [30.0], [40.0]])),
+            (lambda u: u[[0, 2, 4]], np.array([[10.0], [30.0], [50.0]])),
+            (lambda u: u[u > 25], np.array([[30.0], [40.0], [50.0]])),
+        ],
+        ids=["slice", "fancy", "mask"],
+    )
+    def test_structure_preserving_indexing_returns_colvec(
+        self, index_op, expected_values
+    ):
+        """Slice / fancy / mask indexing all return a ColVec of shape (3, 1)."""
         u = self._u()
         key = indexer(u) if callable(indexer) else indexer
         result = u[key]
@@ -503,9 +644,52 @@ class TestColVecGetitem:
         assert flat.shape == (3,)
         mask = np.array([True, False, True])
         result = flat[mask]
+        assert result.shape == (3, 1)
+        assert np.array_equal(np.asarray(result), expected_values)
+class TestMatOutboundConversions:
+    def test_mat_to_numpy_returns_plain_ndarray(self):
+        """Mat.to_numpy returns plain ndarray with shape (n,k)."""
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_numpy()
         assert type(result) is np.ndarray
-        assert result.shape == (2,)
-        np.testing.assert_array_equal(result, np.array([1.0, 3.0]))
+        assert not isinstance(result, Mat)
+        assert result.shape == (2, 2)
+        assert result.dtype == np.float64
+        assert np.array_equal(result, np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+    def test_mat_to_list_returns_nested_rows(self):
+        """Mat.to_list returns nested Python list of row values."""
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_list()
+        assert isinstance(result, list)
+        assert result == [[1.0, 2.0], [3.0, 4.0]]
+
+    def test_mat_to_dataframe_with_labels_when_pandas_installed(self):
+        """Mat.to_dataframe returns DataFrame with optional labels."""
+        pd = pytest.importorskip("pandas")
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        result = A.to_dataframe(columns=["x", "y"], index=["r1", "r2"])
+        assert isinstance(result, pd.DataFrame)
+        assert result.shape == (2, 2)
+        assert list(result.columns) == ["x", "y"]
+        assert list(result.index) == ["r1", "r2"]
+        assert result.to_numpy().tolist() == [[1.0, 2.0], [3.0, 4.0]]
+
+    def test_mat_to_dataframe_raises_importerror_without_pandas(self, monkeypatch):
+        """Mat.to_dataframe raises ImportError when pandas is unavailable."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError("No module named 'pandas'")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        A = Mat(np.array([[1, 2], [3, 4]], dtype=float))
+        with pytest.raises(ImportError):
+            A.to_dataframe()
 
 
 class TestMatOutboundConversions:
