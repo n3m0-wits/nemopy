@@ -101,6 +101,7 @@
         behavioural difference from .T).
 - Source: DESIGN.md §5.7 — mathematical definition (A^H)_ij = conj(A_ji).
 - Expected: A.H values equal np.conj(A).T values elementwise.
+
 ## Test: test_is_scalar_accepts_specified_scalar_types
 - Goal: Verify `_is_scalar` returns True for all scalar categories required
         by the spec.
