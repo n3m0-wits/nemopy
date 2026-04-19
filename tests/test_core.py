@@ -365,6 +365,8 @@ class TestColVecGetitem:
         to plain ndarray indexing rather than reshaping to (k, 1)."""
         u = ColVec(np.array([[1.0], [2.0], [3.0]]))
         flat = u.flatten()
+        assert isinstance(flat, ColVec)
+        assert flat.ndim == 1
         assert flat.shape == (3,)
         mask = np.array([True, False, True])
         result = flat[mask]
