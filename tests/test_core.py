@@ -408,11 +408,10 @@ class TestMatGetItem:
         )
 
     def test_mat_getitem_single_column_slice_returns_mat(self):
-        """A[:, j:k] returns Mat even when the slice selects exactly one column."""
+        """A[:, j:k] returns ColVec when exactly one column is selected."""
         A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
         sub = A[:, 0:1]
-        assert isinstance(sub, Mat)
-        assert not isinstance(sub, ColVec)
+        assert isinstance(sub, ColVec)
         assert sub.shape == (3, 1)
         np.testing.assert_array_equal(
             np.asarray(sub), np.array([[1.0], [4.0], [7.0]])
@@ -614,24 +613,28 @@ class TestColVecGetitem:
     )
     def test_structure_preserving_index_returns_colvec(self, indexer, expected):
         """Slice/fancy/mask indexing each return ColVec with expected values."""
-    @pytest.mark.parametrize(
-        "index_op, expected_values",
-        [
-            (lambda u: u[1:4], np.array([[20.0], [30.0], [40.0]])),
-            (lambda u: u[[0, 2, 4]], np.array([[10.0], [30.0], [50.0]])),
-            (lambda u: u[u > 25], np.array([[30.0], [40.0], [50.0]])),
-        ],
-        ids=["slice", "fancy", "mask"],
-    )
-    def test_structure_preserving_indexing_returns_colvec(
-        self, index_op, expected_values
-    ):
-        """Slice / fancy / mask indexing all return a ColVec of shape (3, 1)."""
         u = self._u()
         key = indexer(u) if callable(indexer) else indexer
         result = u[key]
         assert isinstance(result, ColVec)
         assert result.shape == expected.shape
+        assert np.array_equal(np.asarray(result), expected)
+
+    @pytest.mark.parametrize(
+        "indexer, expected",
+        [
+            pytest.param(slice(1, 2), np.array([[20.0]]), id="slice-size-1"),
+            pytest.param([2], np.array([[30.0]]), id="fancy-size-1"),
+            pytest.param(lambda u: u == 40, np.array([[40.0]]), id="mask-size-1"),
+        ],
+    )
+    def test_structure_preserving_size_one_index_returns_colvec(self, indexer, expected):
+        """Structure-preserving indexing of one element returns ColVec, not float."""
+        u = self._u()
+        key = indexer(u) if callable(indexer) else indexer
+        result = u[key]
+        assert isinstance(result, ColVec)
+        assert result.shape == (1, 1)
         assert np.array_equal(np.asarray(result), expected)
 
     def test_getitem_on_malformed_colvec_delegates_to_plain_ndarray(self):
@@ -644,8 +647,9 @@ class TestColVecGetitem:
         assert flat.shape == (3,)
         mask = np.array([True, False, True])
         result = flat[mask]
-        assert result.shape == (3, 1)
-        assert np.array_equal(np.asarray(result), expected_values)
+        assert type(result) is np.ndarray
+        assert result.shape == (2,)
+        assert np.array_equal(result, np.array([1.0, 3.0]))
 class TestMatOutboundConversions:
     def test_mat_to_numpy_returns_plain_ndarray(self):
         """Mat.to_numpy returns plain ndarray with shape (n,k)."""
@@ -656,6 +660,13 @@ class TestMatOutboundConversions:
         assert result.shape == (2, 2)
         assert result.dtype == np.float64
         assert np.array_equal(result, np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+    def test_mat_to_numpy_returns_copy_not_view(self):
+        """Mat.to_numpy returns a copy so mutating it does not change Mat."""
+        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        result = A.to_numpy()
+        result[0, 0] = 99.0
+        assert A[0, 0] == 1.0
 
     def test_mat_to_list_returns_nested_rows(self):
         """Mat.to_list returns nested Python list of row values."""
