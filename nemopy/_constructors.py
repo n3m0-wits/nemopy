@@ -1,4 +1,4 @@
-"""Constructors: _c singleton, mat(), eye(), as_col()."""
+"""Constructors: _c singleton, mat(), eye(), as_col(), as_mat()."""
 
 import warnings
 
@@ -118,3 +118,67 @@ def eye(n):
         Shape ``(n, n)`` identity matrix with dtype ``float64``.
     """
     return Mat(np.eye(int(n)))
+
+
+def as_col(x):
+    """Convert any array-like to a ColVec.
+
+    Accepts 1D arrays, flat lists, pandas Series, (n,1) arrays, and
+    scalar values. Performs reshaping as needed.
+    """
+    if isinstance(x, (int, float, complex, np.generic)):
+        return ColVec(np.array([[float(x)]]))
+
+    try:
+        import pandas as pd
+
+        if isinstance(x, pd.Series):
+            return ColVec(x.values.astype(float).reshape(-1, 1))
+    except ImportError:
+        pass
+
+    try:
+        arr = np.asarray(x, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(f"as_col() could not convert input of type {type(x)} to float.") from exc
+
+    if arr.ndim == 0:
+        return ColVec(arr.reshape(1, 1))
+    if arr.ndim == 1:
+        return ColVec(arr.reshape(-1, 1))
+    if arr.ndim == 2 and arr.shape[1] == 1:
+        return ColVec(arr)
+    if arr.ndim == 2:
+        raise ShapeError(
+            f"as_col() received a 2D array with shape {arr.shape}. "
+            f"Cannot determine which column to extract. "
+            f"Pass a single column: as_col(arr[:, j])"
+        )
+    raise ShapeError(f"as_col() requires a 1D or (n,1) input, got ndim={arr.ndim}.")
+
+
+def as_mat(x):
+    """Convert any 2D array-like to a Mat.
+
+    Accepts 2D arrays, nested lists, pandas DataFrames, and existing
+    Mat instances.
+    """
+    try:
+        import pandas as pd
+
+        if isinstance(x, pd.DataFrame):
+            return Mat(x.values.astype(float))
+    except ImportError:
+        pass
+
+    try:
+        arr = np.asarray(x, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(f"as_mat() could not convert input of type {type(x)} to float.") from exc
+
+    if arr.ndim != 2:
+        raise ShapeError(
+            f"as_mat() requires a 2D input, got ndim={arr.ndim} "
+            f"with shape {arr.shape}."
+        )
+    return Mat(arr)

@@ -11,6 +11,10 @@ Constructors
 
 .. autofunction:: nemopy.eye
 
+.. autofunction:: nemopy.as_col
+
+.. autofunction:: nemopy.as_mat
+
 Types
 -----
 
