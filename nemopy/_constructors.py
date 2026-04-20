@@ -144,10 +144,15 @@ def as_col(x):
         If ``x`` cannot be converted to a numeric array.
     """
     if isinstance(x, (int, float, complex, np.generic)):
-        scalar = np.array([[x]])
-        if np.iscomplexobj(scalar):
-            scalar = np.real(scalar)
-        return ColVec(scalar.astype(float, copy=False))
+        if np.iscomplexobj(x):
+            if np.imag(x) != 0:
+                raise TypeError(
+                    "as_col() cannot convert a complex scalar with a non-zero "
+                    "imaginary part to float."
+                )
+            x = np.real(x)
+        scalar = np.array([[x]], dtype=float)
+        return ColVec(scalar)
 
     try:
         import pandas as pd
