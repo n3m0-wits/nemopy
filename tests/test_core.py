@@ -650,6 +650,7 @@ class TestColVecGetitem:
         result = flat[mask]
         assert type(result) is np.ndarray
         assert result.shape == (2,)
+
         assert np.array_equal(result, np.array([1.0, 3.0]))
 class TestMatOutboundConversions:
     def test_mat_to_numpy_returns_plain_ndarray(self):
