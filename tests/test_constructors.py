@@ -219,7 +219,6 @@ class TestAsColConstructor:
         assert isinstance(u, ColVec)
         assert u.shape == (1, 1)
         np.testing.assert_array_equal(np.asarray(u), np.array([[1.0]]))
-        np.testing.assert_array_equal(np.imag(np.asarray(u)), np.array([[0.0]]))
 
     def test_as_col_rejects_non_numeric_input(self):
         """as_col(['a']) raises TypeError per the conversion contract."""
