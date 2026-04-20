@@ -263,7 +263,7 @@ class ColVec(_VecBase):
             return np.asarray(self)[key]
 
         if isinstance(key, (int, np.integer)):
-            return float(np.asarray(self)[key][0])
+            return float(super().__getitem__((key, 0)))
 
         result = super().__getitem__(key)
 
