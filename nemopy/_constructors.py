@@ -144,7 +144,10 @@ def as_col(x):
         If ``x`` cannot be converted to a numeric array.
     """
     if isinstance(x, (int, float, complex, np.generic)):
-        return ColVec(np.array([[float(x)]]))
+        scalar = np.array([[x]])
+        if np.iscomplexobj(scalar):
+            scalar = np.real(scalar)
+        return ColVec(scalar.astype(float, copy=False))
 
     try:
         import pandas as pd
