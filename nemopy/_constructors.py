@@ -125,6 +125,23 @@ def as_col(x):
 
     Accepts 1D arrays, flat lists, pandas Series, (n,1) arrays, and
     scalar values. Performs reshaping as needed.
+
+    Parameters
+    ----------
+    x : array-like
+        Input data to convert.
+
+    Returns
+    -------
+    ColVec
+        Shape ``(n, 1)``.
+
+    Raises
+    ------
+    ShapeError
+        If ``x`` has an unsupported dimensionality/shape for column conversion.
+    TypeError
+        If ``x`` cannot be converted to a numeric array.
     """
     if isinstance(x, (int, float, complex, np.generic)):
         return ColVec(np.array([[float(x)]]))
@@ -162,6 +179,23 @@ def as_mat(x):
 
     Accepts 2D arrays, nested lists, pandas DataFrames, and existing
     Mat instances.
+
+    Parameters
+    ----------
+    x : array-like
+        Input data to convert.
+
+    Returns
+    -------
+    Mat
+        Shape ``(n, k)``.
+
+    Raises
+    ------
+    ShapeError
+        If ``x`` is not 2D after conversion.
+    TypeError
+        If ``x`` cannot be converted to a numeric array.
     """
     try:
         import pandas as pd
