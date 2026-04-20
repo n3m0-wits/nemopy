@@ -158,7 +158,12 @@ def as_col(x):
         import pandas as pd
 
         if isinstance(x, pd.Series):
-            return ColVec(x.values.astype(float).reshape(-1, 1))
+            try:
+                return ColVec(x.values.astype(float).reshape(-1, 1))
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    f"as_col() could not convert input of type {type(x)} to float."
+                ) from exc
     except ImportError:
         pass
 
