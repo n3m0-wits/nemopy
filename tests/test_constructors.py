@@ -126,7 +126,7 @@
 import numpy as np
 import pytest
 
-from nemopy import _c, as_col, mat, eye, as_mat, ColVec, Mat, ShapeError, ShapeError
+from nemopy import _c, as_col, mat, eye, as_mat, ColVec, Mat, ShapeError
 
 
 class TestColConstructor:
@@ -196,6 +196,27 @@ class TestEyeConstructor:
         assert isinstance(I, Mat)
         assert I.shape == (3, 3)
         np.testing.assert_array_equal(np.asarray(I), np.eye(3))
+
+
+class TestAsColConstructor:
+    def test_as_col_from_list(self):
+        """as_col([1,2,3]) returns ColVec (3,1) with matching values."""
+        u = as_col([1, 2, 3])
+        assert isinstance(u, ColVec)
+        assert u.shape == (3, 1)
+        np.testing.assert_array_equal(np.asarray(u), np.array([[1.0], [2.0], [3.0]]))
+
+    def test_as_col_from_scalar(self):
+        """as_col(7) returns ColVec (1,1)."""
+        u = as_col(7)
+        assert isinstance(u, ColVec)
+        assert u.shape == (1, 1)
+        np.testing.assert_array_equal(np.asarray(u), np.array([[7.0]]))
+
+    def test_as_col_rejects_non_numeric_input(self):
+        """as_col(['a']) raises TypeError per the conversion contract."""
+        with pytest.raises(TypeError):
+            as_col(["a"])
 
 
 class TestAsMatConstructor:
