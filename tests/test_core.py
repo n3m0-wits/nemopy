@@ -407,7 +407,7 @@ class TestMatGetItem:
             np.asarray(sub), np.array([[1.0, 2.0], [4.0, 5.0], [7.0, 8.0]])
         )
 
-    def test_mat_getitem_single_column_slice_returns_mat(self):
+    def test_mat_getitem_single_column_slice_returns_colvec(self):
         """Single-column slice indexing (e.g., A[:, 0:1]) returns ColVec."""
         A = Mat(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float))
         sub = A[:, 0:1]
