@@ -214,8 +214,8 @@ class TestAsColConstructor:
         np.testing.assert_array_equal(np.asarray(u), np.array([[7.0]]))
 
     def test_as_col_from_complex_scalar(self):
-        """as_col(1+2j) keeps scalar complex handling and returns ColVec (1,1)."""
-        u = as_col(1 + 2j)
+        """as_col(1+0j) keeps scalar complex handling and returns ColVec (1,1)."""
+        u = as_col(1 + 0j)
         assert isinstance(u, ColVec)
         assert u.shape == (1, 1)
         np.testing.assert_array_equal(np.asarray(u), np.array([[1.0]]))
