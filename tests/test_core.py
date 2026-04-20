@@ -668,6 +668,13 @@ class TestMatOutboundConversions:
         result[0, 0] = 99.0
         assert A[0, 0] == 1.0
 
+    def test_mat_to_numpy_returns_copy_not_view(self):
+        """Mat.to_numpy returns a copy so mutating it does not change Mat."""
+        A = Mat(np.array([[1.0, 2.0], [3.0, 4.0]]))
+        result = A.to_numpy()
+        result[0, 0] = 99.0
+        assert A[0, 0] == 1.0
+
     def test_mat_to_list_returns_nested_rows(self):
         """Mat.to_list returns nested Python list of row values."""
         A = Mat(np.array([[1, 2], [3, 4]], dtype=float))

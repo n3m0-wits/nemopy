@@ -262,13 +262,13 @@ class ColVec(_VecBase):
         if self.ndim != 2 or self.shape[1] != 1:
             return np.asarray(self)[key]
 
+        if isinstance(key, (int, np.integer)):
+            return float(np.asarray(self)[key][0])
+
         result = super().__getitem__(key)
 
         if not isinstance(result, np.ndarray) or result.ndim == 0:
             return float(result)
-
-        if result.ndim == 1 and result.size == 1:
-            return float(result[0])
 
         if result.ndim == 1:
             return ColVec(result.reshape(-1, 1))
@@ -369,10 +369,6 @@ class Mat(_VecBase):
             return ColVec(result.reshape(-1, 1))
 
         if result.ndim == 2:
-            if isinstance(key, tuple) and len(key) == 2:
-                col_key = key[1]
-                if isinstance(col_key, (slice, list, np.ndarray)):
-                    return result.view(Mat)
             if result.shape[1] == 1:
                 return result.view(ColVec)
             return result.view(Mat)
@@ -508,46 +504,3 @@ class Mat(_VecBase):
                 f"This matrix has shape {self.shape}."
             )
         return float(np.linalg.det(self))
-
-    def to_numpy(self):
-        """Return a plain ndarray of shape (n, k). Strips subclass label.
-
-        Returns
-        -------
-        np.ndarray
-            Shape ``(n, k)``, dtype ``float64``.
-        """
-        return np.asarray(self, dtype=np.float64)
-
-    def to_list(self):
-        """Return a nested list (list of rows, each a list of floats).
-
-        Returns
-        -------
-        list of list of float
-            Outer list has ``n`` elements, each inner list has ``k`` elements.
-        """
-        return self.tolist()
-
-    def to_dataframe(self, columns=None, index=None):
-        """Return a pandas DataFrame.
-
-        Parameters
-        ----------
-        columns : list of str, optional
-            Column labels. Defaults to integer range.
-        index : array-like, optional
-            Row index labels.
-
-        Returns
-        -------
-        pd.DataFrame
-
-        Raises
-        ------
-        ImportError
-            If pandas is not installed.
-        """
-        import pandas as pd
-
-        return pd.DataFrame(np.asarray(self), columns=columns, index=index)
