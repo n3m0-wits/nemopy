@@ -214,7 +214,12 @@ def as_mat(x):
         import pandas as pd
 
         if isinstance(x, pd.DataFrame):
-            return Mat(x.values.astype(float))
+            try:
+                return Mat(x.values.astype(float))
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    f"as_mat() could not convert input of type {type(x)} to float."
+                ) from exc
     except ImportError:
         pass
 
