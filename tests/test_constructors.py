@@ -126,7 +126,7 @@
 import numpy as np
 import pytest
 
-from nemopy import _c, as_col, mat, eye, as_mat, ColVec, Mat, ShapeError, ShapeError
+from nemopy import _c, as_col, mat, eye, as_mat, ColVec, Mat, ShapeError
 
 
 class TestColConstructor:
