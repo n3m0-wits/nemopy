@@ -7,6 +7,9 @@ Constructors
 .. autodata:: nemopy._c
    :no-value:
 
+.. autodata:: nemopy._m
+   :no-value:
+
 .. autofunction:: nemopy.mat
 
 .. autofunction:: nemopy.eye

@@ -1,4 +1,4 @@
-"""Constructors: _c singleton, mat(), eye(), as_col(), as_mat()."""
+"""Constructors: _c singleton, _m singleton, mat(), eye(), as_col(), as_mat()."""
 
 import warnings
 
@@ -29,6 +29,71 @@ class _ColConstructor:
 
 
 _c = _ColConstructor()
+
+
+class _MatConstructor:
+    """Singleton bracket-notation matrix constructor with MATLAB-style syntax.
+
+    Usage
+    -----
+    >>> _m["1, 2, 3; 4, 5, 6; 7, 8, 9"]                # noqa
+    Mat with shape (3, 3) whose columns are [1,2,3], [4,5,6], [7,8,9].
+
+    The string is parsed column-by-column: rows of the literal (separated
+    by ``;``) become columns of the resulting matrix, matching nemopy's
+    column-first convention. To get the row-first MATLAB interpretation,
+    transpose with ``.T``::
+
+        _m["1, 2, 3; 4, 5, 6"].T  # rows [1,2,3] and [4,5,6]
+
+    Element separators inside a column may be commas, whitespace, or both.
+    Optional surrounding ``[...]`` brackets are tolerated to mirror the
+    MATLAB literal exactly.
+    """
+
+    def __getitem__(self, item):
+        if not isinstance(item, str):
+            raise TypeError(
+                "_m[] takes a single string. "
+                'Example: _m["1, 2, 3; 4, 5, 6; 7, 8, 9"]'
+            )
+        text = item.strip()
+        if text.startswith("[") and text.endswith("]"):
+            text = text[1:-1].strip()
+        if not text:
+            raise ValueError("_m[] received an empty string.")
+
+        col_strs = [s.strip() for s in text.split(";")]
+        cols = []
+        for i, col_str in enumerate(col_strs):
+            if not col_str:
+                raise ValueError(
+                    f"_m[] column {i} is empty. "
+                    f"Use a single ';' between columns, no trailing or leading ';'."
+                )
+            tokens = [t for t in col_str.replace(",", " ").split() if t]
+            try:
+                values = [float(t) for t in tokens]
+            except ValueError as exc:
+                raise TypeError(
+                    f"_m[] column {i} contains a non-numeric token: {exc}"
+                ) from exc
+            cols.append(values)
+
+        lengths = {len(c) for c in cols}
+        if len(lengths) > 1:
+            raise ValueError(
+                f"_m[] columns have unequal lengths: {[len(c) for c in cols]}. "
+                f"All columns must have the same number of rows."
+            )
+
+        return Mat(np.array(cols, dtype=float).T)
+
+    def __repr__(self):
+        return "_m"
+
+
+_m = _MatConstructor()
 
 
 def _to_colvec(arg, index):

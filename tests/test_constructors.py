@@ -126,7 +126,7 @@
 import numpy as np
 import pytest
 
-from nemopy import _c, as_col, as_mat, eye, mat, ColVec, Mat, ShapeError
+from nemopy import _c, _m, as_col, as_mat, eye, mat, ColVec, Mat, ShapeError
 
 
 class TestColConstructor:
@@ -268,3 +268,85 @@ class TestAsMatConstructor:
         """as_mat([['a', 'b'], ['c', 'd']]) raises TypeError per the contract."""
         with pytest.raises(TypeError):
             as_mat([["a", "b"], ["c", "d"]])
+
+
+## Test: test_m_columns_default
+# - Goal: Verify _m["1, 2, 3; 4, 5, 6; 7, 8, 9"] returns Mat (3,3) whose columns
+#         are [1,2,3], [4,5,6], [7,8,9] per nemopy column-first convention.
+# - Source: DESIGN_APPENDICES.md §17 (MATLAB-style _m string constructor).
+# - Expected: shape (3, 3), column 0 == [1,2,3], column 2 == [7,8,9].
+#
+## Test: test_m_transpose_to_rows
+# - Goal: Verify the .T modifier flips the column-first interpretation to rows,
+#         giving the row-first MATLAB result.
+# - Source: DESIGN_APPENDICES.md §17.
+#
+## Test: test_m_unequal_columns_raises
+# - Goal: Verify unequal column lengths raise ValueError.
+#
+## Test: test_m_non_numeric_raises
+# - Goal: Verify non-numeric tokens raise TypeError.
+#
+## Test: test_m_brackets_tolerated
+# - Goal: Verify "[1, 2; 3, 4]" with surrounding [] parses identically.
+#
+## Test: test_m_whitespace_separator
+# - Goal: Verify whitespace works as element separator (MATLAB-true).
+#
+## Test: test_m_empty_string_raises
+# - Goal: Verify "" or "[]" raises ValueError.
+#
+## Test: test_m_non_string_input_raises
+# - Goal: Verify non-string subscripts raise TypeError.
+class TestMatlabConstructor:
+    def test_m_columns_default(self):
+        """_m['1, 2, 3; 4, 5, 6; 7, 8, 9'] has columns [1,2,3], [4,5,6], [7,8,9]."""
+        A = _m["1, 2, 3; 4, 5, 6; 7, 8, 9"]
+        assert isinstance(A, Mat)
+        assert A.shape == (3, 3)
+        np.testing.assert_array_equal(A[:, 0].flatten(), [1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(A[:, 1].flatten(), [4.0, 5.0, 6.0])
+        np.testing.assert_array_equal(A[:, 2].flatten(), [7.0, 8.0, 9.0])
+
+    def test_m_transpose_to_rows(self):
+        """_m['1, 2, 3; 4, 5, 6; 7, 8, 9'].T has rows [1,2,3], [4,5,6], [7,8,9]."""
+        A = _m["1, 2, 3; 4, 5, 6; 7, 8, 9"].T
+        assert A.shape == (3, 3)
+        np.testing.assert_array_equal(np.asarray(A[0, :]).flatten(), [1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(np.asarray(A[1, :]).flatten(), [4.0, 5.0, 6.0])
+        np.testing.assert_array_equal(np.asarray(A[2, :]).flatten(), [7.0, 8.0, 9.0])
+
+    def test_m_unequal_columns_raises(self):
+        """_m['1, 2; 3, 4, 5'] raises ValueError for ragged columns."""
+        with pytest.raises(ValueError):
+            _m["1, 2; 3, 4, 5"]
+
+    def test_m_non_numeric_raises(self):
+        """_m['1, a; 3, 4'] raises TypeError for non-numeric tokens."""
+        with pytest.raises(TypeError):
+            _m["1, a; 3, 4"]
+
+    def test_m_brackets_tolerated(self):
+        """_m['[1, 2; 3, 4]'] equals _m['1, 2; 3, 4']."""
+        A = _m["[1, 2; 3, 4]"]
+        B = _m["1, 2; 3, 4"]
+        np.testing.assert_array_equal(np.asarray(A), np.asarray(B))
+
+    def test_m_whitespace_separator(self):
+        """_m['1 2 3; 4 5 6'] parses with whitespace separators."""
+        A = _m["1 2 3; 4 5 6"]
+        assert A.shape == (3, 2)
+        np.testing.assert_array_equal(A[:, 0].flatten(), [1.0, 2.0, 3.0])
+        np.testing.assert_array_equal(A[:, 1].flatten(), [4.0, 5.0, 6.0])
+
+    def test_m_empty_string_raises(self):
+        """_m[''] and _m['[]'] raise ValueError."""
+        with pytest.raises(ValueError):
+            _m[""]
+        with pytest.raises(ValueError):
+            _m["[]"]
+
+    def test_m_non_string_input_raises(self):
+        """_m[1, 2, 3] (non-string) raises TypeError."""
+        with pytest.raises(TypeError):
+            _m[1, 2, 3]

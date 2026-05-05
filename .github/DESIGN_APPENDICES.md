@@ -664,6 +664,83 @@ rank-2 objects, it is out of scope.
 
 ---
 
+## 17. MATLAB-style String Constructor `_m`
+
+### 17.1 Rationale
+
+Python does not allow `[1, 2, 3; 4, 5, 6]` as a literal — semicolons are
+not valid inside list brackets. Users coming from MATLAB / Octave / Julia
+frequently want a one-line literal for a matrix. `_m` provides the closest
+viable Python syntax: a singleton with `__getitem__` that takes a single
+string and parses it.
+
+`_m` is column-first by default to match nemopy's overall convention
+(§3, §5). The `.T` property on the resulting `Mat` yields the row-first
+MATLAB interpretation for users who want it.
+
+### 17.2 Surface
+
+```python
+_m: _MatConstructor    # singleton in nemopy._constructors
+
+# Forms that all parse identically
+A = _m["1, 2, 3; 4, 5, 6; 7, 8, 9"]
+B = _m["[1, 2, 3; 4, 5, 6; 7, 8, 9]"]   # MATLAB-true brackets tolerated
+C = _m["1 2 3; 4 5 6; 7 8 9"]            # whitespace separators
+```
+
+All three of `A`, `B`, `C` are `Mat(3, 3)` whose **columns** are
+`[1, 2, 3]`, `[4, 5, 6]`, `[7, 8, 9]`.
+
+### 17.3 Grammar
+
+```
+expr        := optional-brackets columns optional-brackets
+columns     := column ( ';' column )*
+column      := element ( separator element )*
+separator   := ',' | whitespace+
+element     := signed numeric token convertible to float
+optional-brackets := '[' ... ']'   (only at the very start and end)
+```
+
+### 17.4 Behaviour and errors
+
+| Input                          | Result                             |
+|--------------------------------|------------------------------------|
+| `_m["1, 2; 3, 4"]`             | `Mat(2, 2)` cols `[1,2]`, `[3,4]`  |
+| `_m["1 2; 3 4"]`               | same as above (whitespace = comma) |
+| `_m["[1, 2; 3, 4]"]`           | same as above (brackets stripped)  |
+| `_m["1, 2, 3"]`                | `Mat(3, 1)` (single column)        |
+| `_m["1, 2; 3, 4, 5"]`          | raises `ValueError` (ragged)       |
+| `_m["1, a; 3, 4"]`             | raises `TypeError` (non-numeric)   |
+| `_m[""]`, `_m["[]"]`           | raises `ValueError` (empty)        |
+| `_m["1, 2; ; 3, 4"]`           | raises `ValueError` (empty col)    |
+| `_m[1, 2, 3]` (not a string)   | raises `TypeError`                 |
+
+### 17.5 Row-first interpretation via `.T`
+
+For users who want the MATLAB-true row-first reading, transpose the result:
+
+```python
+# columns [1, 2, 3] and [4, 5, 6]  — nemopy column-first default
+A = _m["1, 2, 3; 4, 5, 6"]            # Mat(3, 2)
+
+# rows [1, 2, 3] and [4, 5, 6]  — MATLAB-true row-first
+A_rows = _m["1, 2, 3; 4, 5, 6"].T     # Mat(2, 3)
+```
+
+### 17.6 dtype
+
+Always `float64`, matching `_c[]` and `mat()`. Tokens are parsed via
+`float(...)`, so any literal Python `float`-convertible string is accepted
+(`"1e-3"`, `"-2.5"`, `"+0"`, `"inf"`, `"nan"`).
+
+### 17.7 `__all__` registration
+
+`_m` is added to `__all__` in `nemopy/__init__.py` alongside `_c`.
+
+---
+
 ## Appendix A. Documentation Specification
 
 *This appendix specifies the documentation tooling and format. It is an implementation
