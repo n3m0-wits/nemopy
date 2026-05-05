@@ -158,7 +158,7 @@ nemopy
 nemopy/
 ├── __init__.py          # re-exports public API
 ├── _core.py             # ColVec, Mat, _VecBase, ShapeError, ConventionWarning
-├── _constructors.py     # _c singleton, mat(), eye()
+├── _constructors.py     # _c singleton, _m singleton, mat(), eye(), as_col(), as_mat()
 └── _operators.py        # operator override logic (mixed into _VecBase)
 ```
 
@@ -171,6 +171,7 @@ that the public API is importable from `nemopy` directly.
 ```python
 __all__ = [
     "_c",
+    "_m",
     "mat",
     "eye",
     "as_col",
