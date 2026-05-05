@@ -1,7 +1,5 @@
 """Core types: ColVec, Mat, _VecBase, ShapeError, ConventionWarning."""
 
-import warnings
-
 import numpy as np
 
 _NPY_MAJOR = int(np.__version__.split(".")[0])
@@ -40,28 +38,6 @@ def _apply_type_rules(result):
     if result.ndim == 2:
         return result.view(Mat)
     return np.asarray(result)
-
-
-def _is_scalar(x):
-    if isinstance(x, (int, float, complex, np.generic)):
-        return True
-    if isinstance(x, np.ndarray) and x.ndim == 0:
-        return True
-    return False
-
-
-def _check_shapes(a, b, op_name):
-    """Raise ShapeError if a and b are both arrays with different shapes."""
-    if _is_scalar(a) or _is_scalar(b):
-        return
-    a_shape = np.shape(a)
-    b_shape = np.shape(b)
-    if a_shape != b_shape:
-        raise ShapeError(
-            f"Element-wise '{op_name}' requires identical shapes, "
-            f"got {a_shape} and {b_shape}. "
-            f"If broadcasting is intended, use np.multiply / np.add directly."
-        )
 
 
 class _VecBase(np.ndarray):
@@ -145,84 +121,6 @@ class _VecBase(np.ndarray):
             Type determined by output shape (same rules as .T).
         """
         return self.conj().T
-
-    def __mul__(self, other):
-        _check_shapes(self, other, "*")
-        return super().__mul__(other)
-
-    def __rmul__(self, other):
-        _check_shapes(other, self, "*")
-        return super().__rmul__(other)
-
-    def __add__(self, other):
-        _check_shapes(self, other, "+")
-        return super().__add__(other)
-
-    def __radd__(self, other):
-        _check_shapes(other, self, "+")
-        return super().__radd__(other)
-
-    def __sub__(self, other):
-        _check_shapes(self, other, "-")
-        return super().__sub__(other)
-
-    def __rsub__(self, other):
-        _check_shapes(other, self, "-")
-        return super().__rsub__(other)
-
-    def __truediv__(self, other):
-        _check_shapes(self, other, "/")
-        return super().__truediv__(other)
-
-    def __rtruediv__(self, other):
-        _check_shapes(other, self, "/")
-        return super().__rtruediv__(other)
-
-    def __matmul__(self, other):
-        if isinstance(other, np.ndarray) and not isinstance(other, _VecBase):
-            if other.ndim == 2 and other.shape[0] < other.shape[1]:
-                warnings.warn(
-                    f"Right operand of @ is a plain ndarray with shape {other.shape} — "
-                    f"more columns than rows. If this came from np.array([[...]]), "
-                    f"it may be row-first and transposed relative to nemopy convention. "
-                    f"Wrap with Mat(...) to suppress this warning.",
-                    ConventionWarning,
-                    stacklevel=2,
-                )
-        return super().__matmul__(other)
-
-    def __rmatmul__(self, other):
-        if isinstance(other, np.ndarray) and not isinstance(other, _VecBase):
-            if other.ndim == 2 and other.shape[0] < other.shape[1]:
-                warnings.warn(
-                    f"Left operand of @ is a plain ndarray with shape {other.shape} — "
-                    f"more columns than rows. If this came from np.array([[...]]), "
-                    f"it may be row-first and transposed relative to nemopy convention. "
-                    f"Wrap with Mat(...) to suppress this warning.",
-                    ConventionWarning,
-                    stacklevel=2,
-                )
-        return super().__rmatmul__(other)
-
-    def __iadd__(self, other):
-        _check_shapes(self, other, "+")
-        super().__iadd__(other)
-        return self
-
-    def __isub__(self, other):
-        _check_shapes(self, other, "-")
-        super().__isub__(other)
-        return self
-
-    def __imul__(self, other):
-        _check_shapes(self, other, "*")
-        super().__imul__(other)
-        return self
-
-    def __itruediv__(self, other):
-        _check_shapes(self, other, "/")
-        super().__itruediv__(other)
-        return self
 
 
 class ColVec(_VecBase):
@@ -410,49 +308,6 @@ class Mat(_VecBase):
                 f"This matrix has shape {self.shape}."
             )
         return Mat(np.linalg.inv(self))
-
-    def to_numpy(self):
-        """Return a plain ndarray of shape (n, k). Strips subclass label.
-
-        Returns
-        -------
-        np.ndarray
-            Shape ``(n, k)``, dtype ``float64``.
-        """
-        return np.array(self)
-
-    def to_list(self):
-        """Return a nested list (list of rows, each a list of floats).
-
-        Returns
-        -------
-        list of list of float
-            Outer list has ``n`` elements, each inner list has ``k`` elements.
-        """
-        return self.tolist()
-
-    def to_dataframe(self, columns=None, index=None):
-        """Return a pandas DataFrame.
-
-        Parameters
-        ----------
-        columns : list of str, optional
-            Column labels. Defaults to integer range.
-        index : array-like, optional
-            Row index labels.
-
-        Returns
-        -------
-        pd.DataFrame
-
-        Raises
-        ------
-        ImportError
-            If pandas is not installed.
-        """
-        import pandas as pd
-
-        return pd.DataFrame(np.asarray(self), columns=columns, index=index)
 
     @property
     def is_singular(self):
